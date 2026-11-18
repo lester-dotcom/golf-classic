@@ -344,11 +344,11 @@ let COURSE=COURSES[0],TH=THEMES.parkland;
 
 /* ---------------- tuning ---------------- */
 const MAXC={tee:212,fairway:190,rough:165,deep:120,sand:78,pot:45};          // max carry by lie
-const SPREAD={tee:.5,fairway:.7,rough:1.8,deep:4,sand:4.5,pot:7};          // degrees of random direction error
-const CVAR={tee:.015,fairway:.02,rough:.05,deep:.12,sand:.12,pot:.18};          // random carry error
+const SPREAD={tee:1.3,fairway:1.4,rough:2.6,deep:5,sand:5.5,pot:8};          // degrees of random direction error
+const CVAR={tee:.03,fairway:.035,rough:.06,deep:.13,sand:.13,pot:.2};          // random carry error
 const ROLLF={tee:.12,fairway:.12,rough:.045,deep:.02,fringe:.08,green:.06,sand:0,pot:0}; // roll as share of carry
 const FR={green:2.2,fringe:4.5,fairway:7,tee:7,rough:20,deep:42,sand:80,pot:90};        // rolling friction yd/s^2
-const CUPR=0.46,CAPV_PUTT=4.2,CAPV_APP=7,PUTT_VMAX=12.5,DT=1/120;
+const CUPR=0.46,CUPR_PUTT=0.24,CAPV_PUTT=4.2,CAPV_APP=7,PUTT_VMAX=12.5,DT=1/120;
 // bounce physics: e = vertical bounce kept, k = forward speed kept on each impact, h = first bounce height factor
 const GRAV=30,VZMIN=2.4;
 // tees: forward red (starter), yellow (standard), back white (pro). mult = reward multiplier for the future reward system
@@ -732,7 +732,7 @@ const GEAR=[
  ["irons","Woods & Irons",["Stock Irons","Tour Irons","Pro Irons","Legend Irons"],"+2% distance off the deck, more spin effect per tier"],
  ["wedges","Wedges",["Stock Wedges","Tour Wedges","Pro Wedges","Legend Wedges"],"Big boost to spin: top tiers zip the ball back"],
  ["putter","Putter",["Stock Putter","Tour Putter","Pro Putter","Legend Putter"],"Hole plays 8% bigger and putts drop at 8% more pace per tier"]];
-const PRICES=[500,1500,3500];
+const PRICES=[800,2400,6000];
 const TIERS=[
  {id:"club",name:"Club Monthly Medal",short:"Club Medal",tee:"red",field:11,lo:1,hi:9,purse:1000,req:null},
  {id:"county",name:"County Open",short:"County Open",tee:"yellow",field:15,lo:-2,hi:5,purse:2500,req:{tier:"club",lvl:4}},
@@ -743,17 +743,17 @@ function blankProfile(){return{level:1,xp:0,points:0,money:0,skills:{},gear:{},b
 let PF=blankProfile();try{const v=JSON.parse(localStorage.getItem(PKEY)||"null");if(v)PF=Object.assign(blankProfile(),v);}catch(e){}
 function savePF(){try{localStorage.setItem(PKEY,JSON.stringify(PF));}catch(e){}}
 const SK=k=>PF.skills[k]||0,GR=k=>PF.gear[k]||0;
-const xpNeed=L=>100+50*L;
+const xpNeed=L=>150+100*L;
 function addXP(n){n=Math.round(n);PF.xp+=n;let ups=0;while(PF.xp>=xpNeed(PF.level)){PF.xp-=xpNeed(PF.level);PF.level++;PF.points++;ups++;}savePF();
   if(PF.level>=5)ach("lvl5");if(PF.level>=10)ach("lvl10");return ups;}
 const ACH=[
- ["birdie","Birdie!","Make your first birdie",100,30],["eagle","Eagle Eye","Make an eagle or better",300,80],["hio","Ace!","Make a hole in one",1000,250],
- ["chipin","Chip In","Hole out from off the green",150,40],["lag","Long Range","Hole a putt from 30 ft or more",150,40],["bomb","Monster Drive","Hit a drive of 265y or more",150,40],
- ["zip","Zip It","Spin the ball back on the green",100,30],["sandy","Sandy","Get down in 2 from a bunker",120,30],["fish","Fish Food","Find the water 10 times",20,10],
- ["fairways","Fairway Finder","Hit every fairway in a full round",200,50],["nothree","Steady Hands","Full round without a three-putt",200,50],["underpar","Red Numbers","Finish a full round under par",300,80],
- ["whiteunder","Pro Material","Full round under par from the white tees",800,200],["win1","Club Champion","Win a Monthly Medal",200,50],["win2","Open Winner","Win an Open",500,100],
- ["win3","Champion of Champions","Win a Championship",1500,300],["tourist","Globetrotter","Finish a full round on every course",500,100],["lvl5","Rising Star","Reach level 5",200,0],
- ["lvl10","Tour Pro","Reach level 10",500,0],["daily1","Daily Grind","Complete a daily challenge",50,20],["dailyace","Daily Ace","Hole in one in the daily challenge",500,100],["legend","Fully Kitted","Buy a Legend club",0,100]];
+ ["birdie","Birdie!","Make your first birdie",25,10],["eagle","Eagle Eye","Make an eagle or better",75,25],["hio","Ace!","Make a hole in one",250,60],
+ ["chipin","Chip In","Hole out from off the green",40,15],["lag","Long Range","Hole a putt from 30 ft or more",40,15],["bomb","Monster Drive","Hit a drive of 265y or more",40,15],
+ ["zip","Zip It","Spin the ball back on the green",25,10],["sandy","Sandy","Get down in 2 from a bunker",30,10],["fish","Fish Food","Find the water 10 times",5,5],
+ ["fairways","Fairway Finder","Hit every fairway in a full round",50,20],["nothree","Steady Hands","Full round without a three-putt",50,20],["underpar","Red Numbers","Finish a full round under par",75,30],
+ ["whiteunder","Pro Material","Full round under par from the white tees",200,60],["win1","Club Champion","Win a Monthly Medal",50,20],["win2","Open Winner","Win an Open",120,40],
+ ["win3","Champion of Champions","Win a Championship",400,100],["tourist","Globetrotter","Finish a full round on every course",150,50],["lvl5","Rising Star","Reach level 5",50,0],
+ ["lvl10","Tour Pro","Reach level 10",150,0],["daily1","Daily Grind","Complete a daily challenge",10,5],["dailyace","Daily Ace","Hole in one in the daily challenge",150,40],["legend","Fully Kitted","Buy a Legend club",0,30]];
 let achQ=[],achBusy=false;
 function ach(id){if(MODE==="pass")return;PF.ach=PF.ach||{};if(PF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PF.ach[id]=new Date().toLocaleDateString("en-GB");PF.money+=a[3];savePF();if(a[4])addXP(a[4]);achQ.push(a);showAch();}
 function showAch(){if(achBusy||!achQ.length)return;achBusy=true;const a=achQ.shift(),el=$("achT");
@@ -772,7 +772,7 @@ function errMul(l,power,cl){
 }
 const spinGroup=cl=>cl.n==="Driver"?"driver":/Wedge/.test(cl.n)?"wedges":"irons";
 const SPINNAME={"2":"Top 2","1":"Top 1","0":"Normal","-1":"Back 1","-2":"Back 2"};
-let spinSel=0;
+let spinSel=0,WPH=0;
 const LOOKS={shirt:["#e8523f","#3b6fd8","#f5cf4a","#7dde6a","#c77dff","#ffffff","#ff9f40","#1f2638"],cap:["#1f2638","#ffffff","#e8523f","#3b6fd8","#f5cf4a","#2e7d32"],pants:["#2b3550","#e9e2cf","#5a5f6b","#7a1f16"]};
 if(!PF.look)PF.look={shirt:"#e8523f",cap:"#1f2638",pants:"#2b3550"};
 
@@ -826,7 +826,7 @@ function stepBall(st,dt){
   else if(HOLE.elev){const gr=(elevAt(st.x,st.y+1)-elevAt(st.x,st.y-1))/2;st.vy-=gr*7*dt;}
   let sp=Math.hypot(st.vx,st.vy);
   const dx=st.x-HOLE.pin.x,dy=st.y-HOLE.pin.y;
-  const cR=CUPR*(1+0.08*GR("putter"));
+  const cR=(st.cupR||CUPR)*(1+0.08*GR("putter"));
   if(dx*dx+dy*dy<cR*cR){
     if(sp<(st.capV||CAPV_PUTT)*(1+0.08*GR("putter"))){st.done="holed";st.x=HOLE.pin.x;st.y=HOLE.pin.y;return;}
     if(!st.lip){st.lip=true;const side=(dx*st.vy-dy*st.vx)>0?-1:1,a=side*0.35,c=Math.cos(a),sn=Math.sin(a),vx=st.vx*c-st.vy*sn,vy=st.vx*sn+st.vy*c;st.vx=vx*.75;st.vy=vy*.75;sp*=.75;}
@@ -836,7 +836,7 @@ function stepBall(st,dt){
   const k=ns/sp;st.vx*=k;st.vy*=k;st.x+=st.vx*dt;st.y+=st.vy*dt;
 }
 function simPutt(x,y,ang,v){
-  const st={x,y,vx:Math.cos(ang)*v,vy:Math.sin(ang)*v},path=[{x,y}];
+  const st={x,y,vx:Math.cos(ang)*v,vy:Math.sin(ang)*v,cupR:CUPR_PUTT},path=[{x,y}];
   for(let i=0;i<1600&&!st.done;i++){stepBall(st,DT);if(i%3===0)path.push({x:st.x,y:st.y});}
   path.push({x:st.x,y:st.y});return{path,done:st.done};
 }
@@ -855,10 +855,12 @@ function takeShot(a){
   snap={x:ball.x,y:ball.y,lie,strokes};strokes++;hideReplay();trail=[];
   lastPutt=!!a.putt;if(a.putt&&HS)HS.putts++;shotStartD=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);
   if(a.putt){
-    R={x:ball.x,y:ball.y,vx:Math.cos(a.ang)*a.v,vy:Math.sin(a.ang)*a.v,z:0,vz:0,air:false,capV:CAPV_PUTT};rollT=0;acc=0;phase="roll";
+    const pk=(1-0.06*SK("putting"))*(window.__noErr?0:1),pv=a.v*(1+(Math.random()-.5)*2*(0.02+0.15*a.power)*pk),pa=a.ang+(Math.random()-.5)*2*(0.3+5*a.power)*pk*Math.PI/180;
+    R={x:ball.x,y:ball.y,vx:Math.cos(pa)*pv,vy:Math.sin(pa)*pv,z:0,vz:0,air:false,capV:CAPV_PUTT,cupR:CUPR_PUTT};rollT=0;acc=0;phase="roll";
     GF={x:ball.x,y:ball.y,ang:a.ang,t:0,power:a.power,putt:true};shotDir={x:Math.cos(a.ang),y:Math.sin(a.ang)};sfx("putt");updateHUD();return;
   }
-  const cl=a.club||pickClub(a.carry),em=errMul(lie,a.power,cl);
+  const cl=a.club||pickClub(a.carry);let em=errMul(lie,a.power,cl);
+  if(a.power>0.93){em*=1.9;}  // going flat out costs control
   // spin: + = topspin (lower, runs), - = backspin (higher, stops). Better clubs amplify it.
   const e=spinSel*(1+0.3*GR(spinGroup(cl)));
   const ang=a.ang+(Math.random()-.5)*2*SPREAD[lie]*em*Math.PI/180;
@@ -1007,6 +1009,7 @@ function update(dt){
   if(GF)GF.t+=dt;
   updBirds(dt);updWeather(dt);updCeleb(dt);
   if(Math.floor(time*10)%3===0)updSpinBtn();
+  if(drag&&phase==="aim"&&isPutt())WPH+=dt*(1.4+1.0*(lastAim&&lastAim.power||0))*(1-0.04*SK("putting"));
   if(drag&&phase==="aim")lastAim=computeAim();
   camTarget();
   const k=1-Math.exp(-dt*(phase==="flight"?3:4));
@@ -1037,7 +1040,7 @@ function computeAim(){
   if(len<14)return{ok:false,px,py,len,power:0};
   const ang=Math.atan2(py,-px);
   if(isPutt()){
-    const v=PUTT_VMAX*Math.sqrt(COND[WX.cond].fric)*power,amp=(2+2.5*power)*Math.PI/180*(1-0.05*SK("putting")),wt=time*(1-0.04*SK("putting")),w=amp*(0.8*Math.sin(wt*2.7)+0.2*Math.sin(wt*4.4+1)),a2=ang+w;
+    const v=PUTT_VMAX*Math.sqrt(COND[WX.cond].fric)*power,amp=(3+4.5*power)*Math.PI/180*(1-0.05*SK("putting")),w=amp*(0.8*Math.sin(WPH*2.7)+0.2*Math.sin(WPH*4.4+1)),a2=ang+w;
     return{ok:true,putt:true,ang:a2,v,power,px,py,len,sim:simPutt(ball.x,ball.y,a2,v),dist:v*v/(2*fr("green"))};
   }
   const raw=maxCarry(lie)*COND[WX.cond].carry*Math.pow(power,1.5),club=pickClub(raw),e=spinSel*(1+0.3*GR(spinGroup(club)));
@@ -1217,7 +1220,7 @@ function drawCourse(){
   ctx.fillStyle=T.green;poly(h.greenPoly);ctx.fill();
   ctx.save();poly(h.greenPoly);ctx.clip();bands(0,3,"rgba(255,255,255,.08)");ctx.restore();
   // cup
-  const cx=SX(h.pin.x),cyy=SY(h.pin.y),cr=Math.max(3.5,CUPR*s*1.15);
+  const cx=SX(h.pin.x),cyy=SY(h.pin.y),cr=Math.max(3.5,0.3*s*1.15);
   ctx.fillStyle="#e9f4d9";ctx.beginPath();ctx.ellipse(cx,cyy,cr+1.5,(cr+1.5)*0.8,0,0,7);ctx.fill();
   ctx.fillStyle="#2b2a24";ctx.beginPath();ctx.ellipse(cx,cyy,cr,cr*0.8,0,0,7);ctx.fill();
 }
@@ -1538,7 +1541,7 @@ function dailySpec(){const k=dayKey();let h=7;for(const c of k)h=(h*31+c.charCod
   const tee=r()<.5?"yellow":"white",lv=["light","breezy","strong"][Math.floor(r()*3)],rg=WINDLV[lv];
   return{key:k,course:c,hole:hi,name:d.name,tee,cond:r()<.7?"sunny":"overcast",wind:{mph:Math.round(rg[0]+r()*(rg[1]-rg[0])),ang:r()*6.283}};}
 function dailyState(){const sp=dailySpec();if(!PF.daily||PF.daily.key!==sp.key)PF.daily={key:sp.key,tries:0,best:null,tier:6};return PF.daily;}
-const DTIERS=[[0,500,150,"Hole in one!"],[6,250,80,"Inside 6 ft"],[15,120,40,"Inside 15 ft"],[30,60,20,"Inside 30 ft"],[-1,25,10,"On the green"],[-2,0,5,"Off the green"],[-3,0,0,"No score"]];
+const DTIERS=[[0,250,60,"Hole in one!"],[6,120,30,"Inside 6 ft"],[15,60,15,"Inside 15 ft"],[30,30,8,"Inside 30 ft"],[-1,10,4,"On the green"],[-2,0,5,"Off the green"],[-3,0,0,"No score"]];
 function startDaily(){RW=[];const st=dailyState(),sp=dailySpec();if(st.tries>=3)return;
   if(!DAILY_PREV)DAILY_PREV={course:COURSE.id};setCourse(sp.course.id);MODE="daily";scores=[];firstHole=sp.hole;RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};TIER=null;FIELD=[];
   TEE=sp.tee;WX={cond:sp.cond,wind:"light"};parts=[];startHole(sp.hole);WIND={...sp.wind};updateHUD();toast(`📅 Daily: closest to the pin · try ${st.tries+1} of 3`);}
@@ -1549,7 +1552,7 @@ function dailyCard(ft,onGreen){
   const left=3-st.tries,sp=dailySpec();
   openCard(ft==null?"No score":ft===0?"HOLE IN ONE!":`${Math.round(ft)} ft`,`Daily challenge · ${sp.course.icon} ${sp.name} · ${DTIERS[ti][3]}`,
     paid+`<div class="tiles">${tile("Today's best",st.best==null?"-":st.best===0?"Ace":Math.round(st.best)+" ft")}${tile("Tries left",left)}${tile("Reward tier",DTIERS[st.tier]?DTIERS[st.tier][3].replace("Inside ","&lt; "):"-")}</div>
-    <p style="font-size:12px;color:#8f98ae;text-align:left">Rewards: ace £500 · inside 6 ft £250 · 15 ft £120 · 30 ft £60 · green £25. You're paid the difference when you beat your best tier. A new hole every day.</p>
+    <p style="font-size:12px;color:#8f98ae;text-align:left">Rewards: ace £250 · inside 6 ft £120 · 15 ft £60 · 30 ft £30 · green £10. You're paid the difference when you beat your best tier. A new hole every day.</p>
     <button class="mbtn gold" id="dShare"><b>📨 Share today's result</b><span>Everyone gets the same hole each day</span></button>
     ${left>0?`<button class="mbtn" id="dMenu"><b>Back to menu</b></button>`:""}`,left>0?"Try again":"Back to menu",left>0?startDaily:mainMenu);
   if(left>0)$("dMenu").onclick=()=>{closeCard();mainMenu();};
@@ -1565,6 +1568,7 @@ function beginRound(mode,from,tier){
       FIELD.push({name:names[i],holes:HOLES.map(()=>clamp(Math.round(m+gauss()*0.85),-2,3))});}
   }else TEE=PR.tee;
   parts=[];startHole(firstHole);
+  if(mode!=="daily")courseIntro();
   if(mode==="tour")toast(`${COND[WX.cond].icon} ${COND[WX.cond].name} today`);
 }
 // leaderboard after the holes the player has completed
@@ -1700,6 +1704,15 @@ function passHoleCard(){
    `<table><tr><th>Hole</th>${PP.players.map(p=>`<th><span class="tdot" style="background:${p.col};width:11px;height:11px"></span></th>`).join("")}</tr>${HOLES.slice(0,PP.len).map((h,i)=>`<tr><td>${i+1}</td>${PP.players.map(p=>`<td><span class="sc ${cls(p.scores[i]-h.par)}">${p.scores[i]}</span></td>`).join("")}</tr>`).join("")}</table><div class="plab">Final standings</div>`+passBoard(HI),
    "Back to menu",mainMenu);
 }
+const INTROS={
+ alpine:["🏔️ Alpine: height matters",`<ul class="how"><li><b>Downhill shots carry further, uphill shots come up short.</b> Each yard of drop adds about 0.8y of carry.</li><li>The pin distance shows the real effect, e.g. <b>"185y · plays 156y ⬇"</b>. Hit the <b>plays</b> number, not the flat one.</li><li>Your <b>carry number</b> is still the flat distance, so match it to the plays number.</li><li>Shading and dashed <b>contour lines</b> show the slopes (lighter is higher). Balls also run further down slopes.</li></ul>`],
+ links:["🏰 Scottish Links: firm and windy",`<ul class="how"><li>The ground is <b>firm</b>: the ball bounces higher and runs about 60% further. Land it short and let it roll.</li><li><b>Pot bunkers</b> are small and deep. You can only get about 45y out of them.</li><li>It's always <b>breezy or strong</b> in tournaments here. Keep it low with topspin.</li><li>Gorse bushes are low, so only low shots clip them.</li></ul>`],
+ desert:["🏜️ Desert Dunes",`<ul class="how"><li>Sand everywhere: <b>lots of bunkers</b>, including big waste areas across fairways.</li><li>Cacti and palms are thin but they still knock the ball down.</li></ul>`],
+ coast:["🌊 Lakeland Links",`<ul class="how"><li>Water on every hole: lakes, ponds and streams.</li><li>Beyond the beach is <b>the sea</b>: that's a penalty stroke.</li><li>Expect wind and rain in tournaments.</li></ul>`]};
+function courseIntro(){
+  const it=INTROS[COURSE.id];PF.seen=PF.seen||{};if(!it||PF.seen[COURSE.id])return;const keep=phase;phase="intro";
+  openCard(it[0],"Before you tee off",it[1]+`<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:#aab1c4;margin:4px 0 0"><input type="checkbox" id="introNo"> Don't show this again</label>`,"Let's play",()=>{if($("introNo")&&$("introNo").checked){PF.seen[COURSE.id]=1;savePF();}phase=keep==="intro"?"aim":keep;updateHUD();});
+}
 function tourMenu(){
   openCard("Tournaments","Finish top 3 to unlock the next event",
    TIERS.map((t,i)=>{const ok=tierUnlocked(t),b=PF.best[t.id];
@@ -1715,8 +1728,9 @@ function playerMenu(){
    profHead()+`<div style="height:8px"></div>`+SKILLS.map(([k,n,d])=>`<div class="row"><div class="rt"><b>${n}</b> <span style="color:#8f98ae;font-size:12px">${SK(k)}/10</span><div class="rd">${d}</div><div class="pips">${Array.from({length:10},(_,i)=>`<i class="${i<SK(k)?"on":""}"></i>`).join("")}</div></div>
    <button class="plus" data-k="${k}" ${PF.points>0&&SK(k)<10?"":"disabled"}>+1</button></div>`).join("")+
    `<div class="plab">Golfer look</div>`+["shirt","cap","pants"].map(k=>`<div class="row" style="padding:7px 10px"><b style="width:52px;text-transform:capitalize">${k==="pants"?"Trousers":k}</b><div style="display:flex;gap:6px;flex-wrap:wrap">${LOOKS[k].map(c=>`<button class="sw${PF.look[k]===c?" on":""}" data-k="${k}" data-c="${c}" style="background:${c}"></button>`).join("")}</div></div>`).join("")+
-   `<p style="font-size:12px;color:#8f98ae;margin:4px 0 0">Earn XP every hole. Tournaments give full XP, practice gives half. Harder tees multiply it.</p>`,"Back",mainMenu);
+   `<p style="font-size:12px;color:#8f98ae;margin:4px 0 0">Earn XP every hole. Tournaments give full XP, practice gives half. Harder tees multiply it.</p><button class="mbtn" id="pfReset" style="margin-top:8px"><b>🔄 Fresh start</b><span>Reset level, skills, money and clubs (keeps stats and records)</span></button>`,"Back",mainMenu);
   document.querySelectorAll(".sw").forEach(b=>b.onclick=()=>{PF.look[b.dataset.k]=b.dataset.c;savePF();playerMenu();});
+  $("pfReset").onclick=()=>{const b=$("pfReset");if(b.dataset.c){const keep={name:PF.name,look:PF.look,seen:PF.seen};PF=Object.assign(blankProfile(),keep);savePF();toast("Fresh start: level 1, £0, stock clubs");playerMenu();}else{b.dataset.c=1;b.innerHTML="<b>Tap again to restart your career</b><span>Level, skills, money, clubs, achievements and daily progress all go back to the start</span>";}};
   document.querySelectorAll(".plus").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(PF.points<1||SK(k)>=10)return;PF.skills[k]=SK(k)+1;PF.points--;savePF();tone(880,.12,.15,"triangle");playerMenu();});
 }
 function shopMenu(){
