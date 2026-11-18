@@ -755,7 +755,7 @@ const ACH=[
  ["win3","Champion of Champions","Win a Championship",1500,300],["tourist","Globetrotter","Finish a full round on every course",500,100],["lvl5","Rising Star","Reach level 5",200,0],
  ["lvl10","Tour Pro","Reach level 10",500,0],["daily1","Daily Grind","Complete a daily challenge",50,20],["dailyace","Daily Ace","Hole in one in the daily challenge",500,100],["legend","Fully Kitted","Buy a Legend club",0,100]];
 let achQ=[],achBusy=false;
-function ach(id){PF.ach=PF.ach||{};if(PF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PF.ach[id]=new Date().toLocaleDateString("en-GB");PF.money+=a[3];savePF();if(a[4])addXP(a[4]);achQ.push(a);showAch();}
+function ach(id){if(MODE==="pass")return;PF.ach=PF.ach||{};if(PF.ach[id])return;const a=ACH.find(x=>x[0]===id);if(!a)return;PF.ach[id]=new Date().toLocaleDateString("en-GB");PF.money+=a[3];savePF();if(a[4])addXP(a[4]);achQ.push(a);showAch();}
 function showAch(){if(achBusy||!achQ.length)return;achBusy=true;const a=achQ.shift(),el=$("achT");
   el.innerHTML=`<span style="font-size:26px">🏅</span><div><b>${a[1]}</b><span>${a[2]}${a[3]||a[4]?` · ${a[3]?money(a[3]):""}${a[3]&&a[4]?" + ":""}${a[4]?a[4]+" XP":""}`:""}</span></div>`;
   el.classList.add("on");[784,988,1319].forEach((f,i)=>setTimeout(()=>tone(f,.14,.1,"triangle"),i*90));
@@ -842,8 +842,9 @@ function simPutt(x,y,ang,v){
 function startHole(i){
   HI=i;HOLE=HOLES[i];strokes=0;lie="tee";phase="aim";snap=null;trail=[];splash=null;birds=false;$("birds").textContent="🦅 Bird’s-eye";
   ball.x=HOLE.tee.x;ball.y=HOLE.tee.y+0.5;ball.h=0;
+  if(RW[i])WIND={...RW[i]};else{
   const lv=WX.wind==='random'?(TH.windy?['breezy','strong','strong','breezy']:['calm','light','light','breezy','breezy','strong'])[Math.floor(Math.random()*(TH.windy?4:6))]:WX.wind,rg=WINDLV[lv];
-  WIND={mph:Math.round(rg[0]+Math.random()*(rg[1]-rg[0])),ang:Math.random()*Math.PI*2};
+  WIND={mph:Math.round(rg[0]+Math.random()*(rg[1]-rg[0])),ang:Math.random()*Math.PI*2};RW[i]={...WIND};}
   HS={putts:0,driveDone:HOLE.par<4,drove:null,fw:false,green:false,gir:false,prox:null,newRec:false};celeb=null;
   hideReplay();updateHUD();camTarget();Object.assign(cam,camT);
 }
@@ -973,7 +974,7 @@ function holed(){
   if(strokes===1){ach("hio");if(MODE==="daily")ach("dailyace");}
   if(diff===-1)ach("birdie");if(diff<=-2)ach("eagle");if(!lastPutt&&strokes>1)ach("chipin");if(lastPutt&&shotStartD*3>=30)ach("lag");
   if(HS.sandAt!=null&&strokes-HS.sandAt<=2)ach("sandy");
-  if(MODE!=="daily")recordHole(diff);
+  if(MODE!=="daily"&&MODE!=="pass")recordHole(diff);
   let lv=strokes===1?4:diff<=-2?3:diff===-1?2:diff===0?1:diff===1?-1:-2;
   const look={4:["#ffd84a",4.6,true],3:["#ffd84a",3.4,true],2:["#7dde6a",2.6,false],1:["#ffffff",2.1,false],"-1":["#b9c6e4",2.1,false],"-2":["#9fb0d4",2.3,false]}[lv];
   celeb={text:name.replace("!",""),sub,color:look[0],t:0,dur:look[1],big:look[2]};timer=look[1];
@@ -1059,15 +1060,18 @@ $("spinBtn").addEventListener("click",()=>{const m=$("spinMenu");if(m.classList.
 /* ---------------- HUD ---------------- */
 let toastT=null;
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2300);}
-function showReplay(){if(snap)$("replay").style.display="flex";}
+function showReplay(){if(snap&&MODE!=="challenge"&&MODE!=="pass")$("replay").style.display="flex";}
 function hideReplay(){$("replay").style.display="none";}
 function cls(diff){return diff<0?"under":diff===0?"par":"over";}
 function updateHUD(){
   const shot=phase==="aim"?strokes+1:strokes;
+  let vsS="";
+  if(MODE==="challenge"&&CH){let me=0,th=0,n=0;HOLES.forEach((h,i)=>{if(scores[i]!=null){me+=scores[i];th+=CH.sc[i];n++;}});if(n){const d=me-th;vsS=` · <b style="color:var(--gold)">vs ${esc(CH.nm)}: ${d===0?"level":d<0?(-d)+" up":d+" down"}</b>`;}}
+  const ppS=MODE==="pass"&&PP?`<b style="color:${PP.players[PP.cur].col}">${esc(PP.players[PP.cur].name)}</b> · `:"";
   const posS=MODE==="tour"&&FIELD.length&&scores.some(x=>x!=null)?(()=>{const m=board().find(r=>r.me);return ` · <b style="color:var(--gold)">${posTxt(m)} (${tp(m.tp)})</b>`;})():"";
-  $("t2").innerHTML=`<span class="tdot" style="width:11px;height:11px;margin:0 5px 2px 0;background:${TEES[TEE].col}"></span>${HOLE.name} · Hole ${HI+1}/${HOLES.length} · Par ${HOLE.par} · ${HOLE.length}y · Shot ${Math.max(1,shot)}${posS}`;
+  $("t2").innerHTML=`<span class="tdot" style="width:11px;height:11px;margin:0 5px 2px 0;background:${TEES[TEE].col}"></span>${ppS}${HOLE.name} · Hole ${HI+1}/${HOLES.length} · Par ${HOLE.par} · ${HOLE.length}y · Shot ${Math.max(1,shot)}${posS}${vsS}`;
   $("lie").textContent=LIENAME[lie]||lie.toUpperCase();
-  $("ws").textContent=WIND.mph<3?"CALM":WIND.mph<8?"LIGHT":WIND.mph<14?"BREEZY":"STRONG";$("wx").textContent=COND[WX.cond].icon;$("t1").textContent=MODE==="tour"&&TIER?TIER.short:MODE==="intro"?COURSE.name:MODE==="daily"?"Daily Challenge":"Practice Round";$("wm").textContent=WIND.mph+"mph";
+  $("ws").textContent=WIND.mph<3?"CALM":WIND.mph<8?"LIGHT":WIND.mph<14?"BREEZY":"STRONG";$("wx").textContent=COND[WX.cond].icon;$("t1").textContent=MODE==="tour"&&TIER?TIER.short:MODE==="intro"?COURSE.name:MODE==="daily"?"Daily Challenge":MODE==="challenge"?"Challenge":MODE==="pass"?"Pass & Play":"Practice Round";$("wm").textContent=WIND.mph+"mph";
   $("wa").style.transform=`rotate(${-WIND.ang}rad)`;
   let h="";for(let i=0;i<HOLES.length;i++){const s=scores[i];h+=`<div class="dot ${i===HI&&s==null?"cur":""} ${s!=null?cls(s-HOLES[i].par):""}">${s!=null?s:""}</div>`;}
   $("dots").innerHTML=h;
@@ -1085,12 +1089,14 @@ function holeXP(){
 }
 function holeCard(){
   if(MODE==="daily")return dailyCard(0,true);
+  if(MODE==="pass")return passHoleCard();
   const s=scores[HI],d=s-HOLE.par,last=HI===HOLES.length-1,t=scoreTable();
-  const gx=holeXP(),ups=addXP(gx);RXP+=gx;RUPS+=ups;if(ups)setTimeout(fanfare,200);
+  const gx=MODE==="pass"?0:holeXP(),ups=gx?addXP(gx):0;RXP+=gx;RUPS+=ups;if(ups)setTimeout(fanfare,200);
   const xpLine=`<br><b style="color:var(--gold)">+${gx} XP</b>`+(ups?` <b style="color:#7dde6a">⭐ Level ${PF.level}! Skill point to spend</b>`:"");
   const lbH=MODE==="tour"?`<div class="plab">Leaderboard · thru ${HOLES.filter((h,i)=>scores[i]!=null).length}</div>`+boardHtml(board(),5):"";
   const line=`${HS.putts} putt${HS.putts===1?"":"s"}`+(HOLE.par>=4?` · Fairway ${HS.fw?"✓":"✗"}`:"")+` · Green in reg ${HS.gir?"✓":"✗"}`+(HS.newRec?`<br><b style="color:var(--gold)">🏆 New record: ${HS.newRec}</b>`:"");
-  if(!last)openCard(scoreName(d,s),`Hole ${HI+1} · Par ${HOLE.par} · ${s} stroke${s>1?"s":""}<br>${line}${xpLine}`,lbH+t.html,"Next hole",()=>startHole(HI+1));
+  const chL=MODE==="challenge"&&CH?`<br><b style="color:var(--gold)">${esc(CH.nm)} scored ${CH.sc[HI]} here · ${s<CH.sc[HI]?"you win the hole":s>CH.sc[HI]?"they win the hole":"halved"}</b>`:"";
+  if(!last)openCard(scoreName(d,s),`Hole ${HI+1} · Par ${HOLE.par} · ${s} stroke${s>1?"s":""}<br>${line}${xpLine}${chL}`,lbH+t.html,"Next hole",()=>startHole(HI+1));
   else{
     const full=firstHole===0&&HOLES.every((h,i)=>scores[i]!=null);let best="";
     if(full){PF.done=PF.done||{};PF.done[COURSE.id]=1;savePF();if(COURSES.every(c=>PF.done[c.id]))ach("tourist");
@@ -1105,10 +1111,14 @@ function holeCard(){
       const nxt=TIERS[TIERS.indexOf(TIER)+1],newly=nxt&&me.pos<=3?`<div class="newbest">🔓 ${nxt.name} unlocked!</div>`:"";
       if(me.pos===1){setTimeout(()=>{crowd.huge();burst(220,true);},400);ach(["win1","win2","win3"][TIERS.indexOf(TIER)]);}
       openCard(me.pos===1?"🏆 CHAMPION!":`Finished ${posTxt(me)}`,`${TIER.name} · ${t.ts} shots (${tp(t.d)})`,
-        `<div class="tiles">${tile("Prize",money(prize))}${tile("XP earned","+"+RXP)}${tile("Level",PF.level,RUPS?`+${RUPS} this round`:"")}</div>`+newly+best+boardHtml(rows,10)+rs+t.html,"Back to menu",mainMenu);
+        `<button class="mbtn gold" id="mkCh2"><b>📨 Challenge a friend</b><span>Same course, tees, weather and wind</span></button><div style="height:8px"></div><div class="tiles">${tile("Prize",money(prize))}${tile("XP earned","+"+RXP)}${tile("Level",PF.level,RUPS?`+${RUPS} this round`:"")}</div>`+newly+best+boardHtml(rows,10)+rs+t.html,"Back to menu",mainMenu);
+      setTimeout(()=>{const b=$("mkCh2");if(b)b.onclick=()=>sendChallenge(null);},0);
       return;
     }
-    openCard(MODE==="tour"?"TOURNAMENT OVER":"ROUND COMPLETE",`${t.ts} shots · ${t.d===0?"level par":t.d<0?(-t.d)+" under par":t.d+" over par"}`+(full?"":"<br><span style='font-size:12px'>Partial round, not counted for best round</span>"),`<div class="tiles">${tile("XP earned","+"+RXP,"practice: half XP")}${tile("Level",PF.level)}${tile("Money",money(PF.money))}</div>`+best+rs+t.html,"Back to menu",mainMenu);
+    if(MODE==="challenge"&&CH)return challengeEnd(t);
+    const chBtn=full?`<button class="mbtn gold" id="mkCh"><b>📨 Challenge a friend</b><span>Send a link to play this exact round: same course, tees, weather and wind</span></button>`:"";
+    setTimeout(()=>{const b=$("mkCh");if(b)b.onclick=()=>sendChallenge(null);},0);
+    openCard(MODE==="tour"?"TOURNAMENT OVER":"ROUND COMPLETE",`${t.ts} shots · ${t.d===0?"level par":t.d<0?(-t.d)+" under par":t.d+" over par"}`+(full?"":"<br><span style='font-size:12px'>Partial round, not counted for best round</span>"),`<div class="tiles">${tile("XP earned","+"+RXP,"practice: half XP")}${tile("Level",PF.level)}${tile("Money",money(PF.money))}</div>`+chBtn+best+rs+t.html,"Back to menu",mainMenu);
   }
 }
 function tile(l,v,sub){return `<div class="tile"><div class="tv">${v}</div><div class="tl">${l}</div>${sub?`<div class="ts">${sub}</div>`:""}</div>`;}
@@ -1364,7 +1374,7 @@ function drawGolfer(){
   const side=bx>=gx?1:-1,px=gx,py=fy-Hh*0.62,a0=Math.atan2(by-py,bx-px),L=Math.hypot(bx-px,by-py);
   const bMax=putt?0.9:2.8,fMax=putt?0.8:2.6,tha=a0+side*th.back*bMax-side*th.thru*fMax;
   const hx=px+Math.cos(tha)*L*0.42,hy=py+Math.sin(tha)*L*0.42,cx=px+Math.cos(tha)*L,cy=py+Math.sin(tha)*L;
-  const LK=PF.look;
+  const LK=MODE==="pass"&&PP?{...PF.look,shirt:PP.players[PP.cur].col,cap:"#1f2638"}:PF.look;
   ctx.fillStyle="rgba(0,0,0,.22)";ctx.beginPath();ctx.ellipse(gx+Hh*0.12,fy,Hh*0.3,Hh*0.08,0,0,7);ctx.fill();
   ctx.lineCap="round";ctx.lineJoin="round";
   // legs
@@ -1515,7 +1525,7 @@ function render(){
 let last=performance.now();
 function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;if(HOLE){update(dt);render();}requestAnimationFrame(frame);}
 resize();
-let TIER=null,FIELD=[],RXP=0,RUPS=0,DAILY_PREV=null;
+let TIER=null,FIELD=[],RXP=0,RUPS=0,DAILY_PREV=null,RW=[],CH=null,PP=null;
 function dayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function dailySpec(){const k=dayKey();let h=7;for(const c of k)h=(h*31+c.charCodeAt(0))|0;const r=rngF(h);
   const c=COURSES[Math.floor(r()*COURSES.length)],opts=c.defs.map((d,i)=>[d,i]).filter(([d])=>d.par===3),[d,hi]=opts[Math.floor(r()*opts.length)];
@@ -1523,7 +1533,7 @@ function dailySpec(){const k=dayKey();let h=7;for(const c of k)h=(h*31+c.charCod
   return{key:k,course:c,hole:hi,name:d.name,tee,cond:r()<.7?"sunny":"overcast",wind:{mph:Math.round(rg[0]+r()*(rg[1]-rg[0])),ang:r()*6.283}};}
 function dailyState(){const sp=dailySpec();if(!PF.daily||PF.daily.key!==sp.key)PF.daily={key:sp.key,tries:0,best:null,tier:6};return PF.daily;}
 const DTIERS=[[0,500,150,"Hole in one!"],[6,250,80,"Inside 6 ft"],[15,120,40,"Inside 15 ft"],[30,60,20,"Inside 30 ft"],[-1,25,10,"On the green"],[-2,0,5,"Off the green"],[-3,0,0,"No score"]];
-function startDaily(){const st=dailyState(),sp=dailySpec();if(st.tries>=3)return;
+function startDaily(){RW=[];const st=dailyState(),sp=dailySpec();if(st.tries>=3)return;
   if(!DAILY_PREV)DAILY_PREV={course:COURSE.id};setCourse(sp.course.id);MODE="daily";scores=[];firstHole=sp.hole;RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};TIER=null;FIELD=[];
   TEE=sp.tee;WX={cond:sp.cond,wind:"light"};parts=[];startHole(sp.hole);WIND={...sp.wind};updateHUD();toast(`📅 Daily: closest to the pin · try ${st.tries+1} of 3`);}
 function dailyCard(ft,onGreen){
@@ -1534,12 +1544,14 @@ function dailyCard(ft,onGreen){
   openCard(ft==null?"No score":ft===0?"HOLE IN ONE!":`${Math.round(ft)} ft`,`Daily challenge · ${sp.course.icon} ${sp.name} · ${DTIERS[ti][3]}`,
     paid+`<div class="tiles">${tile("Today's best",st.best==null?"-":st.best===0?"Ace":Math.round(st.best)+" ft")}${tile("Tries left",left)}${tile("Reward tier",DTIERS[st.tier]?DTIERS[st.tier][3].replace("Inside ","&lt; "):"-")}</div>
     <p style="font-size:12px;color:#8f98ae;text-align:left">Rewards: ace £500 · inside 6 ft £250 · 15 ft £120 · 30 ft £60 · green £25. You're paid the difference when you beat your best tier. A new hole every day.</p>
+    <button class="mbtn gold" id="dShare"><b>📨 Share today's result</b><span>Everyone gets the same hole each day</span></button>
     ${left>0?`<button class="mbtn" id="dMenu"><b>Back to menu</b></button>`:""}`,left>0?"Try again":"Back to menu",left>0?startDaily:mainMenu);
   if(left>0)$("dMenu").onclick=()=>{closeCard();mainMenu();};
+  $("dShare").onclick=()=>{const b=st.best;shareLink(`📅 Golf Classic daily: ${b==null?"no score yet":b===0?"HOLE IN ONE":b+" ft from the pin"} on ${sp.name} (${sp.course.name}). Beat that!`,baseURL());};
 }
 function gauss(){return Math.sqrt(-2*Math.log(Math.random()+1e-9))*Math.cos(2*Math.PI*Math.random());}
 function beginRound(mode,from,tier){
-  MODE=mode;scores=[];firstHole=from||0;RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};RXP=0;RUPS=0;TIER=tier||null;FIELD=[];
+  MODE=mode;scores=[];firstHole=from||0;if(mode!=="challenge")RW=[];RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};RXP=0;RUPS=0;TIER=tier||null;FIELD=[];
   if(mode==="tour"){
     let r=Math.random(),ci=0;const wp=TH.wx;while(ci<3&&r>wp[ci]){r-=wp[ci];ci++;}WX={cond:["sunny","overcast","rain","snow"][ci],wind:"random"};TEE=tier.tee;
     const wxAdd=WX.cond==="rain"?1:WX.cond==="snow"?2:0,names=NAMES.slice().sort(()=>Math.random()-.5);
@@ -1572,12 +1584,14 @@ function profHead(){
 }
 function mainMenu(){
   phase="intro";hideReplay();MODE="intro";TEE=PR.tee;FIELD=[];updSpinBtn();
+  RW=[];CH=null;PP=null;
   if(DAILY_PREV){setCourse(DAILY_PREV.course);DAILY_PREV=null;startHole(0);phase="intro";}
   const dst=dailyState(),dsp=dailySpec();
   openCard("Golf Classic",`${COURSE.icon} ${COURSE.name} · 9 holes · Par ${HOLES.reduce((a,h)=>a+h.par,0)}`,
-   profHead()+`<div class="plab">Course</div><div class="tees">${COURSES.map(c=>`<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}"><span style="font-size:22px">${c.icon}</span><b style="font-size:13px">${c.name}</b></button>`).join("")}</div>
+   profHead()+`<div class="prof" style="margin-top:4px;font-size:12px"><span>Playing as <b>${esc(PF.name||"you")}</b></span><button id="mName" style="background:none;border:0;color:var(--gold);font-weight:700;font-size:12px">${PF.name?"Change":"Set name"}</button></div><div class="plab">Course</div><div class="tees">${COURSES.map(c=>`<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}"><span style="font-size:22px">${c.icon}</span><b style="font-size:13px">${c.name}</b></button>`).join("")}</div>
    <button class="mbtn gold" id="mTour"><b>🏆 Tournaments</b><span>Win prize money · full XP</span></button>
    <button class="mbtn" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.6'":""}><b>📅 Daily challenge</b><span>${dsp.course.icon} ${dsp.name} · closest to the pin · ${3-dst.tries} tr${3-dst.tries===1?"y":"ies"} left${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
+   <button class="mbtn" id="mPass"><b>👨‍👩‍👧 Pass &amp; play</b><span>2 to 4 players on one phone</span></button>
    <button class="mbtn" id="mPrac"><b>Practice round</b><span>Pick tees, weather, wind and hole · half XP</span></button>
    <button class="mbtn" id="mPlayer"><b>🏌️ Player &amp; skills</b><span>${PF.points?`${PF.points} skill point${PF.points>1?"s":""} to spend`:"Level "+PF.level}</span></button>
    <button class="mbtn" id="mShop"><b>🛒 Pro shop</b><span>Upgrade your clubs · ${money(PF.money)}</span></button>
@@ -1587,6 +1601,8 @@ function mainMenu(){
   $("mStats").onclick=()=>{ac();statsCard();};
   $("mDaily").onclick=()=>{ac();if(dailyState().tries>=3)return;closeCard();startDaily();};
   $("mAch").onclick=()=>{ac();achCard();};
+  $("mPass").onclick=()=>{ac();passMenu();};
+  $("mName").onclick=()=>{const old=PF.name;PF.name="";askName(()=>mainMenu());if(!PF.name&&old)$("nmIn").value=old;};
   $("mTour").onclick=()=>{ac();tourMenu();};
   $("mPrac").onclick=()=>{ac();practiceMenu();};
   $("mPlayer").onclick=()=>{ac();playerMenu();};
@@ -1595,6 +1611,89 @@ function mainMenu(){
 }
 function achCard(){const got=PF.ach||{};
   openCard("Achievements",`${Object.keys(got).length} of ${ACH.length} unlocked`,ACH.map(a=>`<div class="row" style="${got[a[0]]?"":"opacity:.5"}"><span style="font-size:22px">${got[a[0]]?"🏅":"🔒"}</span><div class="rt"><b>${a[1]}</b><div class="rd">${a[2]}${got[a[0]]?` · ${got[a[0]]}`:""}</div></div><span style="font-size:11.5px;color:var(--gold);font-weight:800;text-align:right">${a[3]?money(a[3]):""}${a[4]?`<br>${a[4]} XP`:""}</span></div>`).join(""),"Back",mainMenu);}
+const PAGES_URL="https://lester-dotcom.github.io/golf-classic/";
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+const b64e=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const b64d=t=>JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g,"+").replace(/_/g,"/")))));
+function baseURL(){return /^https?:/.test(location.protocol)&&!/^(localhost|127\.)/.test(location.hostname)?location.origin+location.pathname:PAGES_URL;}
+async function shareLink(text,url){
+  try{if(navigator.share){await navigator.share({title:"Golf Classic",text,url});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  try{await navigator.clipboard.writeText(text+" "+url);toast("Link copied. Paste it into a message");}catch(e){prompt("Copy this link",url);}
+}
+function askName(then){
+  if(PF.name){then(PF.name);return;}
+  openCard("Your name","So your friends know who's challenging them",`<input id="nmIn" maxlength="14" placeholder="e.g. Dad" style="width:100%;font-size:18px;padding:10px;border-radius:12px;border:2px solid #3b4563;background:#2a324b;color:#fff;-webkit-user-select:text;user-select:text">`,"Save",()=>{PF.name=($("nmIn").value||"").trim().slice(0,14)||"A friend";savePF();then(PF.name);});
+  setTimeout(()=>{const i=$("nmIn");if(i)i.focus();},50);
+}
+function sendChallenge(prev){
+  askName(nm=>{
+    const tot=scores.reduce((a,b)=>a+(b||0),0),par=HOLES.reduce((a,h)=>a+h.par,0);
+    const spec={v:1,c:COURSE.id,t:TEE,wx:WX.cond,wd:HOLES.map((h,i)=>RW[i]?[RW[i].mph,Math.round(RW[i].ang*57.3)]:[0,0]),sc:HOLES.map((h,i)=>scores[i]),nm};
+    if(prev)spec.vs={nm:prev.nm,sc:prev.sc};
+    const url=baseURL()+"#ch="+b64e(spec);
+    shareLink(`⛳ ${nm} shot ${tot} (${tp(tot-par)}) at ${COURSE.name} on the ${TEES[TEE].name.toLowerCase()} tees. Same course, same wind. Can you beat it?`,url);
+  });
+}
+function challengeIntro(spec){
+  const c=COURSES.find(x=>x.id===spec.c);if(!c||!Array.isArray(spec.sc)||spec.sc.length!==9){toast("That challenge link didn't work");return;}
+  setCourse(c.id);startHole(0);phase="intro";const par=HOLES.reduce((a,h)=>a+h.par,0),tot=spec.sc.reduce((a,b)=>a+b,0);
+  const rematch=spec.vs?`<p style="font-size:13px;color:#c3c9da">Rematch! Last time you scored ${spec.vs.sc.reduce((a,b)=>a+b,0)}.</p>`:"";
+  openCard(`${esc(spec.nm)} challenges you!`,`${c.icon} ${c.name} · ${TEES[spec.t].name} tees · ${COND[spec.wx].icon} ${COND[spec.wx].name}`,
+   rematch+`<div class="tiles">${tile("Their score",tot,tp(tot-par))}${tile("Holes",9)}${tile("Wind","Same as theirs")}</div><p style="font-size:12px;color:#8f98ae;text-align:left">You play the exact same round: course, tees, weather and the wind on every hole. No replay shots. Half XP.</p><button class="mbtn" id="chNo"><b>Not now</b></button>`,
+   "Accept challenge",()=>{CH=spec;WX={cond:spec.wx,wind:"light"};TEE=spec.t;RW=spec.wd.map(w=>({mph:w[0],ang:w[1]/57.3}));beginRound("challenge",0);});
+  $("chNo").onclick=()=>{closeCard();mainMenu();};
+}
+function challengeEnd(t){
+  const me=t.ts,th=CH.sc.reduce((a,b)=>a+b,0),d=me-th;let won=0,lost=0;HOLES.forEach((h,i)=>{if(scores[i]<CH.sc[i])won++;else if(scores[i]>CH.sc[i])lost++;});
+  if(d<0)setTimeout(()=>{crowd.cheer();burst(160,true);},300);else if(d>0)setTimeout(()=>crowd.groan(),300);else setTimeout(()=>crowd.polite(),300);
+  const rows=HOLES.map((h,i)=>`<tr><td>${i+1}</td><td>${h.par}</td><td><span class="sc ${cls(scores[i]-h.par)}">${scores[i]}</span></td><td><span class="sc ${cls(CH.sc[i]-h.par)}">${CH.sc[i]}</span></td></tr>`).join("");
+  openCard(d<0?"🏆 YOU WIN!":d>0?`${esc(CH.nm)} WINS`:"ALL SQUARE",`You ${me} · ${esc(CH.nm)} ${th} · holes won ${won}, lost ${lost}`,
+   `<button class="mbtn gold" id="chBack"><b>📨 Send it back</b><span>Challenge ${esc(CH.nm)} to beat your ${me}</span></button><div style="height:8px"></div>
+   <table><tr><th>Hole</th><th>Par</th><th>You</th><th>${esc(CH.nm)}</th></tr>${rows}<tr><td colspan="2"><b>Total</b></td><td><b>${me}</b></td><td><b>${th}</b></td></tr></table>`,"Back to menu",mainMenu);
+  const prev=CH;$("chBack").onclick=()=>sendChallenge(prev);
+}
+// ---- pass and play ----
+const PCOLS=["#e8523f","#3b6fd8","#f5cf4a","#7dde6a"];
+let PPS={n:2,names:["","","",""]};
+function passMenu(){
+  if(!PPS.names[0]&&PF.name)PPS.names[0]=PF.name;
+  openCard("Pass & Play","Take turns on one phone · same wind for everyone",
+   `<div class="plab">Players</div>`+chips("ppN",[[2,"2"],[3,"3"],[4,"4"]],PPS.n)+
+   `<div id="ppNames"></div>`+
+   `<div class="plab">Tees</div>`+chips("pT",[["red","🔴 Red"],["yellow","🟡 Yellow"],["white","⚪ White"]],PR.tee)+
+   `<div class="plab">Weather</div>`+chips("pC",[["sunny","☀️"],["overcast","☁️"],["rain","🌧️"],["snow","❄️"]],PR.cond)+
+   `<div class="plab">Wind</div>`+chips("pW",[["calm","Calm"],["light","Light"],["breezy","Breezy"],["strong","Strong"],["random","Random"]],PR.wind)+
+   `<div class="plab">Holes</div>`+chips("pLen",[[3,"First 3"],[9,"All 9"]],PPS.len||9)+
+   `<button class="mbtn" id="ppBack" style="margin-top:10px"><b>Back</b></button>`,
+   "Tee off",()=>{PPS.names=PPS.names.map((n,i)=>(($("ppn"+i)||{}).value||n||"").trim());startPass();});
+  const draw=()=>{$("ppNames").innerHTML=Array.from({length:PPS.n},(_,i)=>`<div class="row" style="padding:6px 10px"><span class="tdot" style="background:${PCOLS[i]};width:16px;height:16px"></span><input id="ppn${i}" maxlength="12" value="${esc(PPS.names[i]||"")}" placeholder="Player ${i+1}" style="flex:1;font-size:16px;padding:7px;border-radius:9px;border:1px solid #3b4563;background:#2a324b;color:#fff;-webkit-user-select:text;user-select:text"></div>`).join("");};
+  const keep=()=>{for(let i=0;i<4;i++){const e=$("ppn"+i);if(e)PPS.names[i]=e.value;}};
+  draw();
+  $("ppN").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{keep();PPS.n=+b.dataset.v;$("ppN").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));draw();});
+  $("pLen").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PPS.len=+b.dataset.v;$("pLen").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));});
+  for(const [id,key] of[["pT","tee"],["pC","cond"],["pW","wind"]])$(id).querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PR[key]=b.dataset.v;$(id).querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));});
+  $("ppBack").onclick=()=>{keep();mainMenu();};
+}
+function startPass(){
+  PP={players:Array.from({length:PPS.n},(_,i)=>({name:PPS.names[i]||"Player "+(i+1),col:PCOLS[i],scores:[]})),cur:0,len:PPS.len||9};
+  WX={cond:PR.cond,wind:PR.wind};TEE=PR.tee;beginRound("pass",0);scores=PP.players[0].scores;updateHUD();
+  toast(`${PP.players[0].name} to play first`);
+}
+function passTotals(upTo){return PP.players.map(p=>{let s=0,par=0;for(let i=0;i<=upTo;i++)if(p.scores[i]!=null){s+=p.scores[i];par+=HOLES[i].par;}return{p,s,d:s-par};}).sort((a,b)=>a.d-b.d);}
+function passBoard(upTo){return `<table class="lb">${passTotals(upTo).map((r,i)=>`<tr><td style="width:30px">${i+1}</td><td style="text-align:left"><span class="tdot" style="background:${r.p.col};width:11px;height:11px;margin-right:6px"></span>${esc(r.p.name)}</td><td>${r.s}</td><td>${tp(r.d)}</td></tr>`).join("")}</table>`;}
+function passHoleCard(){
+  const pl=PP.players[PP.cur],s=pl.scores[HI],d=s-HOLE.par,nextP=PP.cur+1<PP.players.length,lastHole=HI>=PP.len-1;
+  if(nextP){const np=PP.players[PP.cur+1];
+    openCard(`${esc(pl.name)}: ${scoreName(d,s)}`,`Hole ${HI+1} · ${s} stroke${s>1?"s":""}`,`<div class="newbest" style="color:${np.col}">Pass the phone to ${esc(np.name)}</div>`,`${esc(np.name)}'s turn`,()=>{PP.cur++;scores=PP.players[PP.cur].scores;startHole(HI);toast(`${np.name} · hole ${HI+1}`);});return;}
+  const hole=PP.players.map(p=>`<tr><td style="text-align:left"><span class="tdot" style="background:${p.col};width:11px;height:11px;margin-right:6px"></span>${esc(p.name)}</td><td><span class="sc ${cls(p.scores[HI]-HOLE.par)}">${p.scores[HI]}</span></td></tr>`).join("");
+  if(!lastHole){
+    openCard(`Hole ${HI+1} done`,`${HOLE.name} · Par ${HOLE.par}`,`<table><tr><th style="text-align:left">Player</th><th>Score</th></tr>${hole}</table><div class="plab">Standings</div>`+passBoard(HI),`${esc(PP.players[0].name)} tees off`,()=>{PP.cur=0;scores=PP.players[0].scores;startHole(HI+1);toast(`${PP.players[0].name} · hole ${HI+2}`);});return;}
+  const tot=passTotals(HI),win=tot[0],tie=tot.length>1&&tot[1].d===win.d;
+  setTimeout(()=>{crowd.huge();burst(220,true);},300);
+  openCard(tie?"IT'S A TIE!":`🏆 ${esc(win.p.name)} WINS!`,`${COURSE.icon} ${COURSE.name} · ${PP.len} holes`,
+   `<table><tr><th>Hole</th>${PP.players.map(p=>`<th><span class="tdot" style="background:${p.col};width:11px;height:11px"></span></th>`).join("")}</tr>${HOLES.slice(0,PP.len).map((h,i)=>`<tr><td>${i+1}</td>${PP.players.map(p=>`<td><span class="sc ${cls(p.scores[i]-h.par)}">${p.scores[i]}</span></td>`).join("")}</tr>`).join("")}</table><div class="plab">Final standings</div>`+passBoard(HI),
+   "Back to menu",mainMenu);
+}
 function tourMenu(){
   openCard("Tournaments","Finish top 3 to unlock the next event",
    TIERS.map((t,i)=>{const ok=tierUnlocked(t),b=PF.best[t.id];
@@ -1641,6 +1740,7 @@ $("menuBtn").addEventListener("click",()=>{if(cardOpen)return;drag=null;mainMenu
 {let c="parkland";try{c=localStorage.getItem("parkland-classic-course")||c;}catch(e){}setCourse(c);}
 HOLE=HOLES[0];startHole(0);phase="intro";updateHUD();
 mainMenu();
+if(/^#ch=/.test(location.hash)){try{const sp=b64d(location.hash.slice(4));history.replaceState(null,"",location.pathname+location.search);challengeIntro(sp);}catch(e){toast("That challenge link didn't work");}}
 if("serviceWorker" in navigator&&/^https?:/.test(location.protocol)){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 requestAnimationFrame(frame);
 window.__golf={get state(){return{phase,lie,strokes,ball:{...ball},HI,scores:scores.slice()}},get HOLES(){return HOLES},surfaceAt:(x,y)=>surfaceAt(x,y),simPutt,takeShot,computeAim,setSpin:v=>{spinSel=v;},setCourse:c=>{setCourse(c);startHole(0);},setBall:(x,y)=>{ball.x=x;ball.y=y;lie=surfaceAt(x,y);phase="aim";updateHUD();}};
