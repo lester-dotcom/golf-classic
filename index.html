@@ -1025,9 +1025,11 @@ function camTarget(){
   }
   if(phase==="aim"||phase==="intro"){
     const dx=HOLE.pin.x-ball.x,dy=HOLE.pin.y-ball.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
-    if(isPutt()){aimVis=clamp(d*2.2+10,18,70);const o=Math.min(d*0.5,aimVis*0.1);camT.x=ball.x+ux*o;camT.y=ball.y+uy*o;}
-    else{const reach=Math.min(d,MAXC[lie]||200);aimVis=clamp(reach*1.15+40,70,300);camT.x=ball.x+ux*aimVis*0.25;camT.y=ball.y+uy*aimVis*0.25;}
-    camT.s=playH/aimVis;return;
+    const sTop=topH+70,sBot=H-safeB-225,sh=Math.max(200,sBot-sTop),sc=(sTop+sBot)/2;let cx,cyw;
+    if(isPutt()){const ss=Math.min(sh/Math.max(Math.abs(dy)*1.3+8,16),(W-60)/Math.max(Math.abs(dx)*1.3+8,16),sh/16);camT.s=Math.max(ss,sh/80);
+      cx=(ball.x+HOLE.pin.x)/2;cyw=(ball.y+HOLE.pin.y)/2;}
+    else{const reach=Math.min(d,MAXC[lie]||200),vis=clamp(reach*1.15+40,70,300);camT.s=sh/vis;cx=ball.x+ux*vis*0.3;cyw=ball.y+uy*vis*0.3;}
+    aimVis=playH/camT.s;camT.x=cx;camT.y=cyw-(cy0-sc)/camT.s;return;
   }
   if(phase==="holed")return;
   camT.s=playH/aimVis;camT.x=ball.x+shotDir.x*aimVis*0.12;camT.y=ball.y+shotDir.y*aimVis*0.12;
@@ -1035,9 +1037,10 @@ function camTarget(){
 const SX=x=>W/2+(x-cam.x)*cam.s, SY=y=>cy0-(y-cam.y)*cam.s;
 
 /* ---------------- input ---------------- */
+const CANCEL_R=36;
 function computeAim(){
-  const px=drag.x-drag.x0,py=drag.y-drag.y0,len=Math.hypot(px,py),maxD=Math.min(W,H-topH)*0.42,power=Math.min(1,len/maxD);
-  if(len<14)return{ok:false,px,py,len,power:0};
+  const px=drag.x-drag.x0,py=drag.y-drag.y0,len=Math.hypot(px,py),maxD=Math.min(W,H-topH)*0.42,power=clamp((len-CANCEL_R)/(maxD-CANCEL_R*0.4),0,1);
+  if(len<CANCEL_R)return{ok:false,px,py,len,power:0};
   const ang=Math.atan2(py,-px);
   if(isPutt()){
     const v=PUTT_VMAX*Math.sqrt(COND[WX.cond].fric)*power,amp=(3+4.5*power)*Math.PI/180*(1-0.05*SK("putting")),w=amp*(0.8*Math.sin(WPH*2.7)+0.2*Math.sin(WPH*4.4+1)),a2=ang+w;
@@ -1377,7 +1380,7 @@ function drawGolfer(){
   else if(GF&&GF.t<1.8&&phase!=="intro"){x=GF.x;y=GF.y;ang=GF.ang;putt=GF.putt;const t=GF.t;
     th=t<0.09?{back:GF.power*(1-t/0.09),thru:0}:{back:0,thru:Math.min(1,(t-0.09)/0.22)*(0.55+0.45*GF.power)};}
   else return;
-  const Hh=clamp(s*2.1,46,90),bx=SX(x),by=SY(y),ux=Math.cos(ang),uy=-Math.sin(ang),lx=uy,ly=-ux;
+  const Hh=clamp(s*3.4,46,150),bx=SX(x),by=SY(y),ux=Math.cos(ang),uy=-Math.sin(ang),lx=uy,ly=-ux;
   const gx=bx+lx*Hh*0.42,fy=by+ly*Hh*0.42*0.35+2;if(!onScreen(gx,fy-Hh/2,Hh+20))return;
   const fade=GF&&phase!=="aim"?clamp((1.8-GF.t)/0.4,0,1):1;ctx.globalAlpha=fade;
   const side=bx>=gx?1:-1,px=gx,py=fy-Hh*0.62,a0=Math.atan2(by-py,bx-px),L=Math.hypot(bx-px,by-py);
@@ -1437,9 +1440,22 @@ function label(x,y,text,size){
   ctx.font=`900 ${size||22}px system-ui,-apple-system,sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
   ctx.lineJoin="round";ctx.lineWidth=5;ctx.strokeStyle="#3a2a10";ctx.strokeText(text,x,y);ctx.fillStyle="#ffd84a";ctx.fillText(text,x,y);
 }
+function shotPanel(l1,l2,col){
+  ctx.font="900 21px system-ui,-apple-system,sans-serif";const w1=ctx.measureText(l1).width;ctx.font="700 13px system-ui,-apple-system,sans-serif";const w2=ctx.measureText(l2).width;
+  const w=Math.max(w1,w2)+34,x=W/2-w/2,y=topH+8;ctx.fillStyle="rgba(22,28,42,.92)";rrect(x,y,w,54,16);ctx.fill();ctx.strokeStyle=col||"#3b4563";ctx.lineWidth=2;ctx.stroke();
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="900 21px system-ui,-apple-system,sans-serif";ctx.fillStyle=col||"#ffd84a";ctx.fillText(l1,W/2,y+20);
+  ctx.font="700 13px system-ui,-apple-system,sans-serif";ctx.fillStyle="#c3c9da";ctx.fillText(l2,W/2,y+41);
+}
 function drawAim(){
   const a=lastAim;if(!a)return;const bx=SX(ball.x),by=SY(ball.y),s=cam.s;
-  if(!a.ok){ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=3;ctx.beginPath();ctx.arc(bx,by,16,0,7);ctx.stroke();return;}
+  // cancel zone where the drag started
+  const ox=drag.x0,oy=drag.y0,inC=!a.ok;
+  ctx.setLineDash([6,5]);ctx.lineWidth=2.5;ctx.strokeStyle=inC?"rgba(255,120,110,.95)":"rgba(255,255,255,.55)";ctx.beginPath();ctx.arc(ox,oy,CANCEL_R,0,7);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=inC?"rgba(232,82,63,.35)":"rgba(255,255,255,.12)";circ(ox,oy,CANCEL_R);
+  ctx.strokeStyle=inC?"#fff":"rgba(255,255,255,.7)";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ox-7,oy-7);ctx.lineTo(ox+7,oy+7);ctx.moveTo(ox+7,oy-7);ctx.lineTo(ox-7,oy+7);ctx.stroke();
+  const dp=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);let pinTxt=`⛳ ${Math.round(dp)}y to the pin`;
+  if(HOLE.elev&&!isPutt()){const pv=Math.round(playsLike(ball.x,ball.y,HOLE.pin.x,HOLE.pin.y));if(Math.abs(pv-dp)>=3)pinTxt+=` · plays ${pv}y`;}
+  if(!a.ok){shotPanel("Shot cancelled","Release inside the circle to cancel, or pull back to aim","#ff8a7a");return;}
   // power ring
   ctx.lineCap="round";ctx.lineWidth=5;ctx.strokeStyle="rgba(0,0,0,.25)";ctx.beginPath();ctx.arc(bx,by,17,0,7);ctx.stroke();
   ctx.strokeStyle=`hsl(${220+a.power*80},85%,${62-a.power*8}%)`;ctx.beginPath();ctx.arc(bx,by,17,-Math.PI/2,-Math.PI/2+Math.PI*2*a.power);ctx.stroke();
@@ -1453,7 +1469,7 @@ function drawAim(){
     ctx.lineWidth=5;ctx.strokeStyle="rgba(0,0,0,.25)";line(pts);ctx.stroke();
     ctx.lineWidth=3;ctx.strokeStyle=ok?"#6dff6a":"#ffd84a";line(pts);ctx.stroke();
     if(!ok){const e=pts[pts.length-1];ctx.fillStyle=ctx.strokeStyle;circ(SX(e.x),SY(e.y),4);}
-    {const [lx,ly]=placeLabel(bx,by,[[0,-40],[70,-30],[-70,-30],[0,50]]);label(lx,ly,`${Math.round(a.dist)}y`,20);}
+    shotPanel(`Putt ${Math.round(a.dist)}y`,pinTxt.replace(" to the pin"," away")+(ok?" · on line!":""),ok?"#6dff6a":null);
   }else{
     // short direction arrow only: you judge the distance by eye
     const ux2=-ux,uy2=-uy,al=40+a.power*70,ex=bx+ux2*(22+al),ey=by+uy2*(22+al),sx0=bx+ux2*22,sy0=by+uy2*22;
@@ -1461,12 +1477,8 @@ function drawAim(){
     ctx.lineWidth=4;ctx.strokeStyle="#fff";ctx.stroke();
     const hx2=-uy2,hy2=ux2;ctx.fillStyle="#fff";ctx.strokeStyle="rgba(30,30,30,.45)";ctx.lineWidth=2;ctx.beginPath();
     ctx.moveTo(ex+ux2*12,ey+uy2*12);ctx.lineTo(ex+hx2*8,ey+hy2*8);ctx.lineTo(ex-hx2*8,ey-hy2*8);ctx.closePath();ctx.stroke();ctx.fill();
-    // club + carry sit to the side of the ball, clear of both lines
-    let nx=-uy2,ny=ux2;if(Math.sign(nx)===Math.sign(bx-W/2)){nx=-nx;ny=-ny;}
-    const [lx,ly]=placeLabel(bx,by,[[nx*95,ny*95],[-nx*95,-ny*95],[nx*85+ux2*70,ny*85+uy2*70],[-nx*85+ux2*70,-ny*85+uy2*70],[ux2*150,uy2*150]]);
-    ctx.font="800 14px system-ui,-apple-system,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
-    const cn=a.club.n+(spinSel?" · "+SPINNAME[spinSel]:""),cw=ctx.measureText(cn).width+18;ctx.fillStyle="rgba(25,30,45,.88)";rrect(lx-cw/2,ly-30,cw,22,11);ctx.fill();ctx.fillStyle="#fff";ctx.fillText(cn,lx,ly-18);
-    label(lx,ly+6,`Carry ${Math.round(a.carry)}y`,22);
+    // club, carry and pin distance live in a fixed panel at the top, never under your finger
+    shotPanel(`${a.club.n}${spinSel?" · "+SPINNAME[spinSel]:""} · Carry ${Math.round(a.carry)}y`,pinTxt+(a.power>0.93?" · ⚠ full power":""));
   }
 }
 function drawSplash(){
@@ -1524,7 +1536,7 @@ function render(){
   drawCable();
   drawFlock();
   drawWeather();
-  if(phase!=="intro"&&!(phase==="holed"&&sinkT>0.3)){const d=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);let pl="";if(HOLE.elev){const pv=Math.round(playsLike(ball.x,ball.y,HOLE.pin.x,HOLE.pin.y)),dd=Math.round(d);if(Math.abs(pv-dd)>=3)pl=` · plays ${pv}y ${pv<dd?"⬇":"⬆"}`;}pill(f.x,f.top-24,`⛳ ${Math.round(d)}y${pl}`);}
+  if(phase!=="intro"&&!drag&&!(phase==="holed"&&sinkT>0.3)){const d=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);let pl="";if(HOLE.elev){const pv=Math.round(playsLike(ball.x,ball.y,HOLE.pin.x,HOLE.pin.y)),dd=Math.round(d);if(Math.abs(pv-dd)>=3)pl=` · plays ${pv}y ${pv<dd?"⬇":"⬆"}`;}pill(f.x,f.top-24,`⛳ ${Math.round(d)}y${pl}`);}
   if(drag&&phase==="aim")drawAim();
   drawMini();
   drawCeleb();
