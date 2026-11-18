@@ -782,7 +782,10 @@ function blankStats(){return{bestByTee:{},holeBestByTee:{},rounds:0,roundTotal:0
 let ST=blankStats();try{const v=JSON.parse(localStorage.getItem(SKEY)||"null");if(v)ST=Object.assign(blankStats(),v);}catch(e){}
 if(ST.best&&!ST.bestByTee.yellow)ST.bestByTee.yellow=ST.best;
 if(Object.keys(ST.holeBest||{}).length&&!ST.holeBestByTee.yellow)ST.holeBestByTee.yellow=ST.holeBest;
-const CK=k=>COURSE.id==="parkland"?(k||TEE):COURSE.id+"-"+(k||TEE);
+const recMode=()=>MODE==="tour"?"tour":"prac";
+const CK=(k,m)=>((m||recMode())==="prac"?"p:":"")+(COURSE.id==="parkland"?(k||TEE):COURSE.id+"-"+(k||TEE));
+if(!ST.split2){for(const k of Object.keys(ST.bestByTee||{})){const b=ST.bestByTee[k];if(b&&b.mode!=="tour"&&!k.startsWith("p:")){ST.bestByTee["p:"+k]=b;delete ST.bestByTee[k];}}
+  for(const k of Object.keys(ST.holeBestByTee||{})){if(!k.startsWith("p:")){ST.holeBestByTee["p:"+k]=ST.holeBestByTee[k];delete ST.holeBestByTee[k];}}ST.split2=1;try{localStorage.setItem(SKEY,JSON.stringify(ST));}catch(e){}}
 function saveStats(){try{localStorage.setItem(SKEY,JSON.stringify(ST));}catch(e){}}
 let HS=null,RS=null,lastPutt=false,shotStartD=0;
 const ftxt=y=>Math.round(y*3)+" ft";
@@ -1047,7 +1050,7 @@ cv.addEventListener("pointermove",e=>{if(drag&&e.pointerId===drag.id){drag.x=e.c
 cv.addEventListener("pointerup",e=>{if(!drag||e.pointerId!==drag.id)return;const a=lastAim;drag=null;lastAim=null;if(a&&a.ok&&phase==="aim")takeShot(a);});
 cv.addEventListener("pointercancel",()=>{drag=null;lastAim=null;});
 $("birds").addEventListener("click",()=>{birds=!birds;$("birds").textContent=birds?"⛳ Back to ball":"🦅 Bird’s-eye";});
-$("replay").addEventListener("click",()=>{if(!snap||phase!=="aim")return;ball.x=snap.x;ball.y=snap.y;ball.h=0;lie=snap.lie;strokes=snap.strokes;snap=null;trail=[];hideReplay();updateHUD();});
+$("replay").addEventListener("click",()=>{if(!snap||phase!=="aim"||MODE!=="prac"||REPS<=0)return;REPS--;ball.x=snap.x;ball.y=snap.y;ball.h=0;lie=snap.lie;strokes=snap.strokes;snap=null;trail=[];hideReplay();updateHUD();});
 
 /* ---------------- spin selector ---------------- */
 const SPINOPT=[[2,"⇈","Top 2","Low flight, runs a long way"],[1,"↑","Top 1","Lower, more roll"],[0,"●","Normal","Standard flight"],[-1,"↓","Back 1","Higher, stops quicker"],[-2,"⇊","Back 2","High, bites hard"]];
@@ -1060,7 +1063,7 @@ $("spinBtn").addEventListener("click",()=>{const m=$("spinMenu");if(m.classList.
 /* ---------------- HUD ---------------- */
 let toastT=null;
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2300);}
-function showReplay(){if(snap&&MODE!=="challenge"&&MODE!=="pass")$("replay").style.display="flex";}
+function showReplay(){if(snap&&MODE==="prac"&&REPS>0){$("replay").querySelector("span").textContent=`same lie & wind · ${REPS===Infinity?"unlimited":REPS+" left"}`;$("replay").style.display="flex";}}
 function hideReplay(){$("replay").style.display="none";}
 function cls(diff){return diff<0?"under":diff===0?"par":"over";}
 function updateHUD(){
@@ -1101,9 +1104,9 @@ function holeCard(){
     const full=firstHole===0&&HOLES.every((h,i)=>scores[i]!=null);let best="";
     if(full){PF.done=PF.done||{};PF.done[COURSE.id]=1;savePF();if(COURSES.every(c=>PF.done[c.id]))ach("tourist");
       if(RS.fw[1]&&RS.fw[0]===RS.fw[1])ach("fairways");if(!RS.three)ach("nothree");if(t.d<0)ach("underpar");if(t.d<0&&TEE==="white")ach("whiteunder");}
-    if(full){ST.rounds++;ST.roundTotal+=t.ts;const bt=ST.bestByTee[CK()];if(!bt||t.ts<bt.score){ST.bestByTee[CK()]={score:t.ts,toPar:t.d,mode:MODE,date:new Date().toLocaleDateString("en-GB")};best=`<div class="newbest">🏆 New best round from the ${TEES[TEE].name.toLowerCase()} tees!</div>`;}saveStats();}
+    if(full){ST.rounds++;ST.roundTotal+=t.ts;const bt=ST.bestByTee[CK()];if(!bt||t.ts<bt.score){ST.bestByTee[CK()]={score:t.ts,toPar:t.d,mode:MODE,date:new Date().toLocaleDateString("en-GB")};best=`<div class="newbest">🏆 New best ${recMode()==="tour"?"tournament":"practice"} round from the ${TEES[TEE].name.toLowerCase()} tees!</div>`;}saveStats();}
     const avgD=RS.drives.length?Math.round(RS.drives.reduce((a,b)=>a+b,0)/RS.drives.length)+"y":"-",prox=RS.prox.length?ftxt(RS.prox.reduce((a,b)=>a+b,0)/RS.prox.length):"-";
-    const rs=`<div class="tiles">${tile("Fairways",`${RS.fw[0]}/${RS.fw[1]}`)}${tile("Greens in reg",`${RS.gir[0]}/${RS.gir[1]}`)}${tile("Putts",RS.putts)}${tile("Avg drive",avgD)}${tile("Avg proximity",prox,"on greens in reg")}${tile("Best round",ST.bestByTee[CK()]?ST.bestByTee[CK()].score:"-",TEES[TEE].name+" tees")}</div>`;
+    const rs=`<div class="tiles">${tile("Fairways",`${RS.fw[0]}/${RS.fw[1]}`)}${tile("Greens in reg",`${RS.gir[0]}/${RS.gir[1]}`)}${tile("Putts",RS.putts)}${tile("Avg drive",avgD)}${tile("Avg proximity",prox,"on greens in reg")}${tile("Best round",ST.bestByTee[CK()]?ST.bestByTee[CK()].score:"-",TEES[TEE].name+" tees · "+(recMode()==="tour"?"tournament":"practice"))}</div>`;
     if(t.d<0)setTimeout(()=>{crowd.cheer();burst(150,true);},300);
     if(MODE==="tour"){
       const rows=board(),me=rows.find(r=>r.me),prize=prizeFor(rows),bx=Math.round((rows.length+1-me.pos)*3*TEES[TEE].mult);
@@ -1135,13 +1138,16 @@ function backupCard(){
 }
 function statsCard(){
   const D=ST.drives,G=ST.gir,P=ST.putts,c=ST.sc,pct=(a,b)=>b?Math.round(a/b*100)+"%":"-";
-  const bf=k=>{const b=ST.bestByTee[CK(k)];return b?`${b.score} (${b.toPar===0?"E":(b.toPar>0?"+":"")+b.toPar})`:"-";};
-  const body=`<div class="tiles">${tile("Best · Red",bf("red"))}${tile("Best · Yellow",bf("yellow"))}${tile("Best · White",bf("white"))}${tile("Rounds",ST.rounds)}${tile("Scoring avg",ST.rounds?(ST.roundTotal/ST.rounds).toFixed(1):"-")}${tile("Course",COURSE.icon+" "+COURSE.name.split(" ")[0])}
+  const bf=(k,m)=>{const b=ST.bestByTee[CK(k,m)];return b?`${b.score} (${b.toPar===0?"E":(b.toPar>0?"+":"")+b.toPar})`:"-";};
+  const hb=m=>`<table><tr><th>${m==="tour"?"Tournament":"Practice"}</th>${HOLES.map((h,i)=>`<th>${i+1}</th>`).join("")}</tr>${["red","yellow","white"].map(k=>`<tr><td><span class="tdot" style="background:${TEES[k].col}"></span></td>${HOLES.map((h,i)=>{const b=(ST.holeBestByTee[CK(k,m)]||{})[i];return `<td>${b!=null?`<span class="sc ${cls(b-h.par)}">${b}</span>`:"-"}</td>`;}).join("")}</tr>`).join("")}</table>`;
+  const body=`<div class="plab">🏆 Tournament best rounds</div><div class="tiles">${tile("Red",bf("red","tour"))}${tile("Yellow",bf("yellow","tour"))}${tile("White",bf("white","tour"))}</div>
+   <div class="plab">Practice best rounds (incl. challenges)</div><div class="tiles">${tile("Red",bf("red","prac"))}${tile("Yellow",bf("yellow","prac"))}${tile("White",bf("white","prac"))}</div>
+   <div class="plab">All rounds</div><div class="tiles">${tile("Rounds",ST.rounds)}${tile("Scoring avg",ST.rounds?(ST.roundTotal/ST.rounds).toFixed(1):"-")}${tile("Course",COURSE.icon+" "+COURSE.name.split(" ")[0])}
    ${tile("Driving accuracy",pct(D.fw,D.att),D.att+" tee shots")}${tile("Avg drive",D.n?Math.round(D.sum/D.n)+"y":"-")}${tile("Longest drive",D.longest?Math.round(D.longest)+"y":"-")}
    ${tile("Greens in reg",pct(G.hit,G.att))}${tile("Avg proximity",G.proxN?ftxt(G.proxSum/G.proxN):"-","on greens in reg")}${tile("Putts / hole",P.holes?(P.total/P.holes).toFixed(2):"-")}
    ${tile("Putts / round",P.holes?(P.total/P.holes*9).toFixed(1):"-")}${tile("Longest putt",P.longestFt?Math.round(P.longestFt)+" ft":"-","holed")}${tile("Holes in one",c.hio)}</div>
    <table><tr><th>Eagles+</th><th>Birdies</th><th>Pars</th><th>Bogeys</th><th>Double+</th></tr><tr><td>${c.eagle}</td><td>${c.birdie}</td><td>${c.par}</td><td>${c.bogey}</td><td>${c.dbl}</td></tr></table>
-   <table><tr><th>Best</th>${HOLES.map((h,i)=>`<th>${i+1}</th>`).join("")}</tr>${["red","yellow","white"].map(k=>`<tr><td><span class="tdot" style="background:${TEES[k].col}"></span></td>${HOLES.map((h,i)=>{const b=(ST.holeBestByTee[CK(k)]||{})[i];return `<td>${b!=null?`<span class="sc ${cls(b-h.par)}">${b}</span>`:"-"}</td>`;}).join("")}</tr>`).join("")}</table>
+   <div class="plab">Best score per hole</div>${hb("tour")}${hb("prac")}
    <button class="mbtn" id="sBackup" style="margin-top:2px"><b>💾 Back up or restore progress</b><span>Move your level, money, clubs and records to another browser or the app</span></button>
    <button class="mbtn" id="sReset" style="margin-top:2px"><b>Reset stats</b></button>`;
   openCard("Stats & Records",`${COURSE.icon} ${COURSE.name} records · overall stats`,body,"Back",mainMenu);
@@ -1551,7 +1557,7 @@ function dailyCard(ft,onGreen){
 }
 function gauss(){return Math.sqrt(-2*Math.log(Math.random()+1e-9))*Math.cos(2*Math.PI*Math.random());}
 function beginRound(mode,from,tier){
-  MODE=mode;scores=[];firstHole=from||0;if(mode!=="challenge")RW=[];RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};RXP=0;RUPS=0;TIER=tier||null;FIELD=[];
+  MODE=mode;scores=[];firstHole=from||0;REPS=mode==="prac"?(PR.rep<0?Infinity:PR.rep):0;if(mode!=="challenge")RW=[];RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};RXP=0;RUPS=0;TIER=tier||null;FIELD=[];
   if(mode==="tour"){
     let r=Math.random(),ci=0;const wp=TH.wx;while(ci<3&&r>wp[ci]){r-=wp[ci];ci++;}WX={cond:["sunny","overcast","rain","snow"][ci],wind:"random"};TEE=tier.tee;
     const wxAdd=WX.cond==="rain"?1:WX.cond==="snow"?2:0,names=NAMES.slice().sort(()=>Math.random()-.5);
@@ -1721,18 +1727,19 @@ function shopMenu(){
   document.querySelectorAll(".plus").forEach(b=>b.onclick=()=>{const k=b.dataset.k,t=GR(k);if(t>=3||PF.money<PRICES[t])return;PF.money-=PRICES[t];PF.gear[k]=t+1;savePF();if(t+1===3)ach("legend");fanfare();shopMenu();});
 }
 function chips(id,opts,cur){return `<div class="chips" id="${id}">`+opts.map(([v,l])=>`<button class="chip${v==cur?" on":""}" data-v="${v}">${l}</button>`).join("")+`</div>`;}
-let PR={cond:"sunny",wind:"light",hole:0,tee:TEE};
+let PR={cond:"sunny",wind:"light",hole:0,tee:TEE,rep:3};let REPS=0;
 function practiceMenu(){
   openCard("Practice Round","Set up the conditions · half XP",
    `<div class="plab">Tees</div>`+chips("pT",[["red","🔴 Red ×0.75"],["yellow","🟡 Yellow ×1"],["white","⚪ White ×1.5"]],PR.tee)+
    `<div class="plab">Weather</div>`+chips("pC",[["sunny","☀️ Sunny"],["overcast","☁️ Overcast"],["rain","🌧️ Rain"],["snow","❄️ Snow"]],PR.cond)+
    `<div class="plab">Wind</div>`+chips("pW",[["calm","Calm"],["light","Light"],["breezy","Breezy"],["strong","Strong"],["random","Random"]],PR.wind)+
+   `<div class="plab">Replay shots</div>`+chips("pR",[[0,"None"],[3,"3"],[5,"5"],[-1,"Unlimited"]],PR.rep)+
    `<div class="plab">Start at hole</div>`+chips("pH",HOLES.map((h,i)=>[i,String(i+1)]),PR.hole)+
    `<div id="pHn" class="pname"></div><button class="mbtn" id="pBack" style="margin-top:4px"><b>Back</b></button>`,
    "Tee off",()=>{WX={cond:PR.cond,wind:PR.wind};try{localStorage.setItem("parkland-classic-tee",PR.tee);}catch(e){}beginRound("prac",PR.hole);});
   const wire=(id,key,num)=>$(id).querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PR[key]=num?+b.dataset.v:b.dataset.v;$(id).querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));nm();});
   const nm=()=>{TEE=PR.tee;const h=HOLES[PR.hole];$("pHn").textContent=`${h.name} · Par ${h.par} · ${h.length}y from the ${TEES[PR.tee].name.toLowerCase()} tees`;};
-  wire("pT","tee");wire("pC","cond");wire("pW","wind");wire("pH","hole",true);nm();
+  wire("pT","tee");wire("pC","cond");wire("pW","wind");wire("pH","hole",true);wire("pR","rep",true);nm();
   $("pBack").onclick=mainMenu;
 }
 function closeCard(){$("card").classList.remove("on");cardOpen=false;}
