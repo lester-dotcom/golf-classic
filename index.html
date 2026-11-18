@@ -855,7 +855,7 @@ function takeShot(a){
   snap={x:ball.x,y:ball.y,lie,strokes};strokes++;hideReplay();trail=[];
   lastPutt=!!a.putt;if(a.putt&&HS)HS.putts++;shotStartD=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);
   if(a.putt){
-    const pk=(1-0.06*SK("putting"))*(window.__noErr?0:1),pv=a.v*(1+(Math.random()-.5)*2*(0.02+0.15*a.power)*pk),pa=a.ang+(Math.random()-.5)*2*(0.3+5*a.power)*pk*Math.PI/180;
+    const pk=(1-0.06*SK("putting"))*(window.__noErr||(a.sim&&a.sim.done==="holed")?0:1),pv=a.v*(1+(Math.random()-.5)*2*(0.02+0.15*a.power)*pk),pa=a.ang+(Math.random()-.5)*2*(0.3+5*a.power)*pk*Math.PI/180;
     R={x:ball.x,y:ball.y,vx:Math.cos(pa)*pv,vy:Math.sin(pa)*pv,z:0,vz:0,air:false,capV:CAPV_PUTT,cupR:CUPR_PUTT};rollT=0;acc=0;phase="roll";
     GF={x:ball.x,y:ball.y,ang:a.ang,t:0,power:a.power,putt:true};shotDir={x:Math.cos(a.ang),y:Math.sin(a.ang)};sfx("putt");updateHUD();return;
   }
