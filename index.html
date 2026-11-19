@@ -1116,8 +1116,11 @@ function holeCard(){
     if(t.d<0)setTimeout(()=>{crowd.cheer();burst(150,true);},300);
     if(MODE==="tour"){
       const rows=board(),me=rows.find(r=>r.me),prize=prizeFor(rows),bx=Math.round((rows.length+1-me.pos)*3*TEES[TEE].mult);
-      const ups2=addXP(bx);RUPS+=ups2;RXP+=bx;PF.money+=prize;const prev=PF.best[TIER.id];if(!prev||me.pos<prev)PF.best[TIER.id]=me.pos;savePF();
-      const nxt=TIERS[TIERS.indexOf(TIER)+1],newly=nxt&&me.pos<=3?`<div class="newbest">🔓 ${nxt.name} unlocked!</div>`:"";
+      const ups2=addXP(bx);RUPS+=ups2;RXP+=bx;PF.money+=prize;const T0=tourOf(TIER),wasOpen=TOURS.map(tourUnlocked);PF.tb=PF.tb||{};const pk=COURSE.id+":"+T0.id,prev=PF.tb[pk];if(!prev||me.pos<prev)PF.tb[pk]=me.pos;const prevT=PF.best[TIER.id];if(!prevT||me.pos<prevT)PF.best[TIER.id]=me.pos;savePF();
+      const opened=TOURS.filter((T,i)=>!wasOpen[i]&&tourUnlocked(T)),nT=TOURS[TOURS.indexOf(T0)+1];
+      const newly=opened.length?opened.map(T=>`<div class="newbest">🔓 ${T.name} unlocked!</div><p style="font-size:13px;color:#c3c9da;margin:-6px 0 10px">${T.blurb}${T.courses.filter(c=>!TOURS.slice(0,TOURS.indexOf(T)).some(o=>o.courses.includes(c))).length?" · new courses: "+T.courses.filter(c=>!TOURS.slice(0,TOURS.indexOf(T)).some(o=>o.courses.includes(c))).map(c=>COURSES.find(x=>x.id===c).name).join(", "):""}</p>`).join("")
+        :(nT&&!tourUnlocked(nT)&&me.pos===1?`<div class="newbest" style="font-size:16px">${tourWins(T0.id)} of ${nT.need.wins} ${T0.name} wins towards the ${nT.name}</div>`:"");
+      if(opened.length)setTimeout(()=>{fanfare();burst(140,true);},1200);
       if(me.pos===1){setTimeout(()=>{crowd.huge();burst(220,true);},400);ach(["win1","win2","win3"][TIERS.indexOf(TIER)]);}
       openCard(me.pos===1?"🏆 CHAMPION!":`Finished ${posTxt(me)}`,`${TIER.name} · ${t.ts} shots (${tp(t.d)})`,
         `<button class="mbtn gold" id="mkCh2"><b>📨 Challenge a friend</b><span>Same course, tees, weather and wind</span></button><div style="height:8px"></div><div class="tiles">${tile("Prize",money(prize))}${tile("XP earned","+"+RXP)}${tile("Level",PF.level,RUPS?`+${RUPS} this round`:"")}</div>`+newly+best+boardHtml(rows,10)+rs+t.html,"Back to menu",mainMenu);
@@ -1598,7 +1601,18 @@ function boardHtml(rows,max){const me=rows.find(r=>r.me);let show=rows.slice(0,m
   return `<table class="lb">${show.map(r=>`<tr class="${r.me?"me":""}"><td style="width:38px">${posTxt(r)}</td><td style="text-align:left">${r.name}</td><td>${tp(r.tp)}</td></tr>`).join("")}</table>`;}
 function payShare(i,n){const tot=PAYOUT.slice(0,n).reduce((a,b)=>a+b,0);return (PAYOUT[i]||0)/tot;}
 function prizeFor(rows){const me=rows.find(r=>r.me),n=rows.length;let sh=0;for(let k=0;k<me.n;k++)sh+=payShare(me.pos-1+k,n);return Math.round(TIER.purse*sh/me.n);}
-function tierUnlocked(t){if(!t.req)return true;return (PF.best[t.req.tier]||99)<=3||PF.level>=t.req.lvl;}
+const TOURS=[
+ {id:"club",name:"Club Tour",tier:0,courses:["parkland","desert","coast"],need:null,blurb:"Monthly Medals · red tees"},
+ {id:"national",name:"National Tour",tier:1,courses:["parkland","desert","coast","links","alpine"],need:{tour:"club",wins:2},blurb:"Opens · yellow tees"},
+ {id:"world",name:"World Tour",tier:2,courses:["parkland","desert","coast","links","alpine"],need:{tour:"national",wins:3},blurb:"Championships · white tees",soon:"Jungle, Volcano, Ice and Moon join here later"}];
+const tourOf=t=>TOURS[TIERS.indexOf(t)];
+function tbest(cid,tid){PF.tb=PF.tb||{};return PF.tb[cid+":"+tid];}
+function tourWins(tid){const T=TOURS.find(x=>x.id===tid);return T.courses.filter(c=>tbest(c,tid)===1).length;}
+function tourUnlocked(T){return !T.need||tourWins(T.need.tour)>=T.need.wins;}
+function courseUnlocked(cid){return TOURS.some(T=>tourUnlocked(T)&&T.courses.includes(cid));}
+function courseTour(cid){return TOURS.find(T=>T.courses.includes(cid));}
+function tierUnlocked(t){const T=tourOf(t);return tourUnlocked(T)&&T.courses.includes(COURSE.id);}
+const ord=n=>n===1?"🏆 Winner":n+(n%10===2&&n!==12?"nd":n%10===3&&n!==13?"rd":n===1?"st":"th");
 const HOW=`<ul class="how"><li><b>Drag back</b> from anywhere. The further you pull, the further it carries.</li><li>Move your finger to <b>aim</b>, <b>let go</b> to hit.</li><li><b>Wind</b> pushes long shots sideways. Rain and snow kill the roll.</li><li>On the green, release when the wobbling line turns <b style="color:#6dff6a">green</b>.</li></ul>`;
 function profHead(){
   return `<div class="prof"><span>Level <b>${PF.level}</b>${PF.points?`<span class="badge">${PF.points} pt${PF.points>1?"s":""}</span>`:""}</span><span><b>${money(PF.money)}</b></span></div>
@@ -1607,12 +1621,13 @@ function profHead(){
 function mainMenu(){
   phase="intro";hideReplay();MODE="intro";TEE=PR.tee;FIELD=[];updSpinBtn();
   RW=[];CH=null;PP=null;
+  if(!DAILY_PREV&&!courseUnlocked(COURSE.id)){setCourse("parkland");startHole(0);phase="intro";}
   if(DAILY_PREV){setCourse(DAILY_PREV.course);DAILY_PREV=null;startHole(0);phase="intro";}
   const dst=dailyState(),dsp=dailySpec();
   openCard("Golf Classic",`${COURSE.icon} ${COURSE.name} · 9 holes · Par ${HOLES.reduce((a,h)=>a+h.par,0)}`,
-   profHead()+`<div class="prof" style="margin-top:4px;font-size:12px"><span>Playing as <b>${esc(PF.name||"you")}</b></span><button id="mName" style="background:none;border:0;color:var(--gold);font-weight:700;font-size:12px">${PF.name?"Change":"Set name"}</button></div><div class="plab">Course</div><div class="tees">${COURSES.map(c=>`<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}"><span style="font-size:22px">${c.icon}</span><b style="font-size:13px">${c.name}</b></button>`).join("")}</div>
-   <button class="mbtn gold" id="mTour"><b>🏆 Tournaments</b><span>Win prize money · full XP</span></button>
-   <button class="mbtn" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.6'":""}><b>📅 Daily challenge</b><span>${dsp.course.icon} ${dsp.name} · closest to the pin · ${3-dst.tries} tr${3-dst.tries===1?"y":"ies"} left${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
+   profHead()+`<div class="prof" style="margin-top:4px;font-size:12px"><span>Playing as <b>${esc(PF.name||"you")}</b></span><button id="mName" style="background:none;border:0;color:var(--gold);font-weight:700;font-size:12px">${PF.name?"Change":"Set name"}</button></div><div class="plab">Course</div><div class="tees">${COURSES.map(c=>{const ok=courseUnlocked(c.id);return `<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}" ${ok?"":"disabled style='opacity:.45'"}><span style="font-size:22px">${ok?c.icon:"🔒"}</span><b style="font-size:13px">${c.name}</b>${ok?"":`<span class="tm">${courseTour(c.id)&&TOURS.find(T=>T.courses.includes(c.id)&&!TOURS.slice(0,TOURS.indexOf(T)).some(o=>o.courses.includes(c.id))).name}</span>`}</button>`;}).join("")}</div>
+   <button class="mbtn gold" id="mTour"><b>🏆 Tours</b><span>${TOURS.filter(tourUnlocked).map(T=>T.name).join(" · ")} · prize money and full XP</span></button>
+   <button class="mbtn" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.6'":""}><b>📅 Daily challenge</b><span>${courseUnlocked(dsp.course.id)?dsp.course.icon:"🔒 taster of "+dsp.course.name+" ·"} ${dsp.name} · closest to the pin · ${3-dst.tries} tr${3-dst.tries===1?"y":"ies"} left${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
    <button class="mbtn" id="mPass"><b>👨‍👩‍👧 Pass &amp; play</b><span>2 to 4 players on one phone</span></button>
    <button class="mbtn" id="mPrac"><b>Practice round</b><span>Pick tees, weather, wind and hole · half XP</span></button>
    <button class="mbtn" id="mPlayer"><b>🏌️ Player &amp; skills</b><span>${PF.points?`${PF.points} skill point${PF.points>1?"s":""} to spend`:"Level "+PF.level}</span></button>
@@ -1629,7 +1644,7 @@ function mainMenu(){
   $("mPrac").onclick=()=>{ac();practiceMenu();};
   $("mPlayer").onclick=()=>{ac();playerMenu();};
   $("mShop").onclick=()=>{ac();shopMenu();};
-  document.querySelectorAll(".crs").forEach(b=>b.onclick=()=>{ac();setCourse(b.dataset.c);parts=[];startHole(0);phase="intro";updateHUD();mainMenu();});
+  document.querySelectorAll(".crs").forEach(b=>b.onclick=()=>{ac();if(!courseUnlocked(b.dataset.c))return;setCourse(b.dataset.c);parts=[];startHole(0);phase="intro";updateHUD();mainMenu();});
 }
 function achCard(){const got=PF.ach||{};
   openCard("Achievements",`${Object.keys(got).length} of ${ACH.length} unlocked`,ACH.map(a=>`<div class="row" style="${got[a[0]]?"":"opacity:.5"}"><span style="font-size:22px">${got[a[0]]?"🏅":"🔒"}</span><div class="rt"><b>${a[1]}</b><div class="rd">${a[2]}${got[a[0]]?` · ${got[a[0]]}`:""}</div></div><span style="font-size:11.5px;color:var(--gold);font-weight:800;text-align:right">${a[3]?money(a[3]):""}${a[4]?`<br>${a[4]} XP`:""}</span></div>`).join(""),"Back",mainMenu);}
@@ -1726,13 +1741,14 @@ function courseIntro(){
   openCard(it[0],"Before you tee off",it[1]+`<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:#aab1c4;margin:4px 0 0"><input type="checkbox" id="introNo"> Don't show this again</label>`,"Let's play",()=>{if($("introNo")&&$("introNo").checked){PF.seen[COURSE.id]=1;savePF();}phase=keep==="intro"?"aim":keep;updateHUD();});
 }
 function tourMenu(){
-  openCard("Tournaments","Finish top 3 to unlock the next event",
-   TIERS.map((t,i)=>{const ok=tierUnlocked(t),b=PF.best[t.id];
-     return `<button class="mbtn tier${ok?(i===0?" gold":""):" lock"}" data-i="${i}" ${ok?"":"disabled"}><b>${ok?"":"🔒 "}${t.name}</b>
-     <span><span class="tdot" style="width:10px;height:10px;margin:0 4px 1px 0;background:${TEES[t.tee].col}"></span>${TEES[t.tee].name} tees · ${t.field+1} players · purse ${money(t.purse)} · XP ×${TEES[t.tee].mult}</span>
-     <span>${ok?(b?`Best finish: ${b===1?"🏆 Winner":b+(b===2?"nd":b===3?"rd":"th")}`:"Not played yet"):`Unlock: top 3 in ${TIERS.find(x=>x.id===t.req.tier).name} or reach level ${t.req.lvl}`}</span></button>`;}).join("")+
-   `<button class="mbtn" id="tBack"><b>Back</b></button>`,null,null);
-  document.querySelectorAll(".tier").forEach(b=>b.onclick=()=>{const t=TIERS[+b.dataset.i];if(!tierUnlocked(t))return;closeCard();beginRound("tour",0,t);});
+  const html=TOURS.map(T=>{const open=tourUnlocked(T),tier=TIERS[T.tier],need=T.need?TOURS.find(x=>x.id===T.need.tour):null;
+    const head=`<div class="plab" style="margin-top:14px">${open?"":"🔒 "}${T.name} <span style="text-transform:none;letter-spacing:0">· ${T.blurb}</span></div>`;
+    if(!open)return head+`<div class="row" style="opacity:.6"><div class="rt"><b>Locked</b><div class="rd">Win ${T.need.wins} ${need.name} events to unlock (${tourWins(need.id)} of ${T.need.wins})${T.soon?". "+T.soon:""}</div><div class="rd">${T.courses.map(c=>COURSES.find(x=>x.id===c).icon).join(" ")}</div></div></div>`;
+    const nT=TOURS[TOURS.indexOf(T)+1],prog=nT&&!tourUnlocked(nT)?`<div class="rd" style="margin:-2px 0 6px;text-align:left">${tourWins(T.id)} of ${nT.need.wins} wins to unlock the ${nT.name}</div>`:"";
+    return head+prog+T.courses.map(cid=>{const c=COURSES.find(x=>x.id===cid),b=tbest(cid,T.id);
+      return `<button class="mbtn tev" data-t="${T.id}" data-c="${cid}" style="text-align:left;flex-direction:row;align-items:center;gap:10px;padding:9px 11px;margin-top:6px"><span style="font-size:24px">${c.icon}</span><span style="flex:1;display:flex;flex-direction:column;color:#fff;font-size:15px"><b>${c.tiers[T.tier][0]}</b><span>${c.name} · ${TEES[tier.tee].name} tees · purse ${money(tier.purse)}</span></span><span style="font-size:12px;font-weight:800;color:${b===1?"var(--gold)":"#aab1c4"}">${b?ord(b):"New"}</span></button>`;}).join("")+(T.soon?`<div class="rd" style="text-align:left;margin-top:6px">${T.soon}</div>`:"");}).join("");
+  openCard("Tours","Win events to move up a tour and open new courses",html+`<button class="mbtn" id="tBack" style="margin-top:12px"><b>Back</b></button>`,null,null);
+  document.querySelectorAll(".tev").forEach(b=>b.onclick=()=>{const T=TOURS.find(x=>x.id===b.dataset.t);if(!tourUnlocked(T))return;setCourse(b.dataset.c);closeCard();beginRound("tour",0,TIERS[T.tier]);});
   $("tBack").onclick=mainMenu;
 }
 function playerMenu(){
