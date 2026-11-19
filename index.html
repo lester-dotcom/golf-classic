@@ -928,6 +928,7 @@ function updRoll(dt){
 function bounceSfx(s,v){if(s==="sand"||s==="pot")sfx("sand");else noise(.06,450+300*v,1,.12+.25*v);}
 function settle(){
   ball.h=0;lie=surfaceAt(ball.x,ball.y);if(lie==="water"||lie==="ob")return penalty(lie);
+  if(MODE==="mini")return miniSettle();
   if(MODE==="daily"){phase="dailydone";const d=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);callout(d*3<=15?`${Math.round(d*3)} ft. Great shot!`:`${Math.round(d*3)} ft from the pin`,d*3<=15?"good":"info");setTimeout(()=>dailyCard(d*3,lie==="green"),1500);return;}
   if((lie==="sand"||lie==="pot")&&HS)HS.sandAt=strokes;
   phase="aim";updateHUD();showReplay();react();
@@ -965,6 +966,7 @@ function penalty(kind){
   else toast("Out of bounds! +1 penalty stroke");
 }
 function holed(){
+  if(MODE==="mini")return miniHoled();
   ball.x=HOLE.pin.x;ball.y=HOLE.pin.y;ball.h=0;phase="holed";sinkT=0;scores[HI]=strokes;trail=[];
   sfx("cup");hideReplay();updateHUD();
   const diff=strokes-HOLE.par,name=scoreName(diff,strokes);
@@ -1003,7 +1005,7 @@ function update(dt){
   time+=dt;
   if(phase==="flight")updFlight(dt);
   else if(phase==="roll")updRoll(dt);
-  else if(phase==="penalty"){timer-=dt;if(timer<=0&&MODE==="daily"){phase="dailydone";dailyCard(null,false);}else if(timer<=0){strokes++;ball.x=snap.x;ball.y=snap.y;lie=snap.lie;splash=null;phase="aim";updateHUD();showReplay();}}
+  else if(phase==="penalty"){timer-=dt;if(timer<=0&&MODE==="mini"){phase="minidone";miniNext(null);}else if(timer<=0&&MODE==="daily"){phase="dailydone";dailyCard(null,false);}else if(timer<=0){strokes++;ball.x=snap.x;ball.y=snap.y;lie=snap.lie;splash=null;phase="aim";updateHUD();showReplay();}}
   else if(phase==="holed"){sinkT+=dt;timer-=dt;if(timer<=0&&!cardOpen)holeCard();}
   if(splash)splash.t+=dt;
   if(GF)GF.t+=dt;
@@ -1080,10 +1082,11 @@ function updateHUD(){
   const posS=MODE==="tour"&&FIELD.length&&scores.some(x=>x!=null)?(()=>{const m=board().find(r=>r.me);return ` · <b style="color:var(--gold)">${posTxt(m)} (${tp(m.tp)})</b>`;})():"";
   $("t2").innerHTML=`<span class="tdot" style="width:11px;height:11px;margin:0 5px 2px 0;background:${TEES[TEE].col}"></span>${ppS}${HOLE.name} · Hole ${HI+1}/${HOLES.length} · Par ${HOLE.par} · ${HOLE.length}y · Shot ${Math.max(1,shot)}${posS}${vsS}`;
   $("lie").textContent=LIENAME[lie]||lie.toUpperCase();
-  $("ws").textContent=WIND.mph<3?"CALM":WIND.mph<8?"LIGHT":WIND.mph<14?"BREEZY":"STRONG";$("wx").textContent=COND[WX.cond].icon;$("t1").textContent=MODE==="tour"&&TIER?TIER.short:MODE==="intro"?COURSE.name:MODE==="daily"?"Daily Challenge":MODE==="challenge"?"Challenge":MODE==="pass"?"Pass & Play":"Practice Round";$("wm").textContent=WIND.mph+"mph";
+  $("ws").textContent=WIND.mph<3?"CALM":WIND.mph<8?"LIGHT":WIND.mph<14?"BREEZY":"STRONG";$("wx").textContent=COND[WX.cond].icon;$("t1").textContent=MODE==="tour"&&TIER?TIER.short:MODE==="intro"?COURSE.name:MODE==="daily"?"Daily Challenge":MODE==="mini"&&MG?MINIS[MG.type].name:MODE==="challenge"?"Challenge":MODE==="pass"?"Pass & Play":"Practice Round";$("wm").textContent=WIND.mph+"mph";
   $("wa").style.transform=`rotate(${-WIND.ang}rad)`;
   let h="";for(let i=0;i<HOLES.length;i++){const s=scores[i];h+=`<div class="dot ${i===HI&&s==null?"cur":""} ${s!=null?cls(s-HOLES[i].par):""}">${s!=null?s:""}</div>`;}
   $("dots").innerHTML=h;
+  if(MODE==="mini"&&MG)$("t2").innerHTML=miniLine();
 }
 function scoreName(diff,str){if(str===1)return"HOLE IN ONE!";return({"-3":"ALBATROSS!","-2":"EAGLE!","-1":"BIRDIE!","0":"PAR","1":"BOGEY","2":"DOUBLE BOGEY","3":"TRIPLE BOGEY"})[diff]||("+"+diff);}
 function scoreTable(){
@@ -1620,7 +1623,7 @@ function profHead(){
 }
 function mainMenu(){
   phase="intro";hideReplay();MODE="intro";TEE=PR.tee;FIELD=[];updSpinBtn();
-  RW=[];CH=null;PP=null;
+  RW=[];CH=null;PP=null;MG=null;
   if(!DAILY_PREV&&!courseUnlocked(COURSE.id)){setCourse("parkland");startHole(0);phase="intro";}
   if(DAILY_PREV){setCourse(DAILY_PREV.course);DAILY_PREV=null;startHole(0);phase="intro";}
   const dst=dailyState(),dsp=dailySpec();
@@ -1628,6 +1631,7 @@ function mainMenu(){
    profHead()+`<div class="prof" style="margin-top:4px;font-size:12px"><span>Playing as <b>${esc(PF.name||"you")}</b></span><button id="mName" style="background:none;border:0;color:var(--gold);font-weight:700;font-size:12px">${PF.name?"Change":"Set name"}</button></div><div class="plab">Course</div><div class="tees">${COURSES.map(c=>{const ok=courseUnlocked(c.id);return `<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}" ${ok?"":"disabled style='opacity:.45'"}><span style="font-size:22px">${ok?c.icon:"🔒"}</span><b style="font-size:13px">${c.name}</b>${ok?"":`<span class="tm">${courseTour(c.id)&&TOURS.find(T=>T.courses.includes(c.id)&&!TOURS.slice(0,TOURS.indexOf(T)).some(o=>o.courses.includes(c.id))).name}</span>`}</button>`;}).join("")}</div>
    <button class="mbtn gold" id="mTour"><b>🏆 Tours</b><span>${TOURS.filter(tourUnlocked).map(T=>T.name).join(" · ")} · prize money and full XP</span></button>
    <button class="mbtn" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.6'":""}><b>📅 Daily challenge</b><span>${courseUnlocked(dsp.course.id)?dsp.course.icon:"🔒 taster of "+dsp.course.name+" ·"} ${dsp.name} · closest to the pin · ${3-dst.tries} tr${3-dst.tries===1?"y":"ies"} left${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
+   <button class="mbtn" id="mMini"><b>🎯 Mini games</b><span>Closest to the pin · putting challenge · long drive</span></button>
    <button class="mbtn" id="mPass"><b>👨‍👩‍👧 Pass &amp; play</b><span>2 to 4 players on one phone</span></button>
    <button class="mbtn" id="mPrac"><b>Practice round</b><span>Pick tees, weather, wind and hole · half XP</span></button>
    <button class="mbtn" id="mPlayer"><b>🏌️ Player &amp; skills</b><span>${PF.points?`${PF.points} skill point${PF.points>1?"s":""} to spend`:"Level "+PF.level}</span></button>
@@ -1639,6 +1643,7 @@ function mainMenu(){
   $("mDaily").onclick=()=>{ac();if(dailyState().tries>=3)return;closeCard();startDaily();};
   $("mAch").onclick=()=>{ac();achCard();};
   $("mPass").onclick=()=>{ac();passMenu();};
+  $("mMini").onclick=()=>{ac();miniMenu();};
   $("mName").onclick=()=>{const old=PF.name;PF.name="";askName(()=>mainMenu());if(!PF.name&&old)$("nmIn").value=old;};
   $("mTour").onclick=()=>{ac();tourMenu();};
   $("mPrac").onclick=()=>{ac();practiceMenu();};
@@ -1739,6 +1744,67 @@ const INTROS={
 function courseIntro(){
   const it=INTROS[COURSE.id];PF.seen=PF.seen||{};if(!it||PF.seen[COURSE.id])return;const keep=phase;phase="intro";
   openCard(it[0],"Before you tee off",it[1]+`<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:#aab1c4;margin:4px 0 0"><input type="checkbox" id="introNo"> Don't show this again</label>`,"Let's play",()=>{if($("introNo")&&$("introNo").checked){PF.seen[COURSE.id]=1;savePF();}phase=keep==="intro"?"aim":keep;updateHUD();});
+}
+// ---------------- mini games ----------------
+const MINIS={
+ ctp:{name:"Closest to the Pin",icon:"🎯",n:5,desc:"5 balls on a par 3 from the yellow tees. Your total distance from the pin counts, lowest wins. Water or out of bounds counts as 150 ft."},
+ putt:{name:"Putting Challenge",icon:"⛳",n:10,desc:"10 putts on one green, from 3 ft out to 40 ft. One go at each. How many can you hole?"},
+ drive:{name:"Long Drive",icon:"💥",n:3,desc:"3 drives down a par 5. Your longest drive that finishes on the fairway counts."}};
+let MG=null;
+function miniBest(t){PF.mini=PF.mini||{};return PF.mini[t];}
+function miniFmt(t,v){return v==null?"-":t==="ctp"?Math.round(v)+" ft":t==="putt"?v+"/10":Math.round(v)+"y";}
+function miniMenu(){
+  openCard("Mini games",`${COURSE.icon} Played on ${COURSE.name} · pick another course from the menu`,
+   Object.entries(MINIS).map(([k,m])=>`<button class="mbtn mg" data-k="${k}" style="text-align:left"><b>${m.icon} ${m.name}</b><span>${m.desc}</span><span style="color:var(--gold);font-weight:800;margin-top:3px">Best: ${miniFmt(k,miniBest(k))}</span></button>`).join("")+
+   `<button class="mbtn" id="mgBack" style="margin-top:10px"><b>Back</b></button>`,null,null);
+  document.querySelectorAll(".mg").forEach(b=>b.onclick=()=>{closeCard();startMini(b.dataset.k);});$("mgBack").onclick=mainMenu;
+}
+function startMini(type){
+  MODE="mini";RW=[];scores=[];firstHole=0;TIER=null;FIELD=[];CH=null;PP=null;RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};TEE="yellow";
+  const idx=HOLES.map((h,i)=>i),p3=idx.filter(i=>HOLES[i].par===3),p5=idx.filter(i=>HOLES[i].par===5);
+  const hi=type==="ctp"?p3[Math.floor(Math.random()*p3.length)]:type==="drive"?p5[Math.floor(Math.random()*p5.length)]:Math.floor(Math.random()*9);
+  WX={cond:"sunny",wind:type==="putt"?"calm":"random"};MG={type,hi,i:0,res:[],pos:[]};parts=[];
+  startHole(hi);
+  if(type==="putt"){const H=HOLE;for(const ft of[3,5,7,10,13,16,20,25,32,40]){let p=null;for(let k=0;k<60&&!p;k++){const a=Math.random()*6.283,x=H.pin.x+Math.cos(a)*ft/3,y=H.pin.y+Math.sin(a)*ft/3;if(surfaceAt(x,y)==="green")p={x,y,ft};}
+    if(!p){const a=-Math.PI/2;p={x:H.pin.x,y:H.pin.y-Math.min(ft/3,H.green.r*0.8),ft};}MG.pos.push(p);}}
+  miniPlace();toast(`${MINIS[type].icon} ${MINIS[type].name} · ${HOLE.name}`);
+}
+function miniPlace(){
+  const p=MG.type==="putt"?MG.pos[MG.i]:{x:HOLE.tee.x,y:HOLE.tee.y+0.5};
+  ball.x=p.x;ball.y=p.y;ball.h=0;lie=surfaceAt(ball.x,ball.y);phase="aim";strokes=0;snap=null;trail=[];GF=null;celeb=null;
+  HS={putts:0,driveDone:true,green:false,gir:false,prox:null,bonus:0};updateHUD();camTarget();
+}
+function miniLine(){const m=MINIS[MG.type],k=Math.min(MG.i+1,m.n);let sm="";
+  if(MG.type==="ctp")sm=`total ${Math.round(MG.res.reduce((a,r)=>a+(r==null?150:r),0))} ft`;
+  else if(MG.type==="putt")sm=`holed ${MG.res.filter(r=>r===1).length}`+(MG.pos[MG.i]?` · this one ${MG.pos[MG.i].ft} ft`:"");
+  else{const v=MG.res.filter(r=>r&&r.fw).map(r=>r.d);sm=`longest ${v.length?Math.round(Math.max(...v))+"y":"-"}`;}
+  return `${HOLE.name} · ${MG.type==="putt"?"Putt":MG.type==="drive"?"Drive":"Ball"} ${k} of ${m.n} · ${sm}`;}
+function miniSettle(){
+  phase="minidone";const d=Math.hypot(HOLE.pin.x-ball.x,HOLE.pin.y-ball.y);
+  if(MG.type==="ctp"){const ft=Math.round(d*3);callout(`${ft} ft`,ft<=10?"great":ft<=25?"good":"info");return miniNext(ft);}
+  if(MG.type==="putt"){callout("Missed","bad");return miniNext(0);}
+  const dist=Math.hypot(ball.x-HOLE.tee.x,ball.y-HOLE.tee.y),fw=lie==="fairway";callout(fw?`${Math.round(dist)}y · on the fairway`:`${Math.round(dist)}y · missed the fairway`,fw?(dist>=250?"great":"good"):"bad");
+  return miniNext({d:dist,fw});
+}
+function miniHoled(){
+  ball.x=HOLE.pin.x;ball.y=HOLE.pin.y;ball.h=0;phase="minidone";trail=[];sfx("cup");
+  if(MG.type==="ctp"){crowd.huge();burst(200,true);callout("HOLE IN ONE!","great");ach("hio");setTimeout(()=>miniNext(0),2200);}
+  else{crowd.good();callout(`Holed from ${MG.pos[MG.i]?MG.pos[MG.i].ft:""} ft!`,"good");setTimeout(()=>miniNext(1),1100);}
+}
+function miniNext(r){
+  if(!MG||MODE!=="mini")return;MG.res.push(r);MG.i++;updateHUD();
+  if(MG.i>=MINIS[MG.type].n)setTimeout(miniEnd,1300);else setTimeout(()=>{if(MG&&MODE==="mini")miniPlace();},1400);
+}
+function miniEnd(){
+  const t=MG.type,m=MINIS[t];let score,better,xp,rows;
+  if(t==="ctp"){score=MG.res.reduce((a,r)=>a+(r==null?150:r),0);better=v=>v<(miniBest(t)??1e9);xp=Math.max(5,Math.round(40-score/6));rows=MG.res.map((r,i)=>`<tr><td>Ball ${i+1}</td><td>${r==null?"Penalty (150 ft)":r===0?"🎯 Hole in one":r+" ft"}</td></tr>`).join("");}
+  else if(t==="putt"){score=MG.res.filter(r=>r===1).length;better=v=>v>(miniBest(t)??-1);xp=score*4;rows=MG.res.map((r,i)=>`<tr><td>${MG.pos[i].ft} ft</td><td>${r===1?"✅ Holed":"❌ Missed"}</td></tr>`).join("");}
+  else{const v=MG.res.filter(r=>r&&r.fw).map(r=>r.d);score=v.length?Math.max(...v):0;better=v=>v>(miniBest(t)??0);xp=Math.round(8+Math.max(0,score-180)/4);rows=MG.res.map((r,i)=>`<tr><td>Drive ${i+1}</td><td>${r==null?"Penalty":Math.round(r.d)+"y"+(r.fw?" ✅":" ❌ rough")}</td></tr>`).join("");}
+  const nb=better(score);if(nb){PF.mini=PF.mini||{};PF.mini[t]=score;}const ups=addXP(xp);savePF();
+  if(nb)setTimeout(()=>{crowd.cheer();burst(120,false);},300);
+  openCard(`${m.icon} ${miniFmt(t,score)}`,`${m.name} · ${HOLE.name}`,(nb?`<div class="newbest">🏆 New personal best!</div>`:`<div style="color:#aab1c4;margin-bottom:10px">Best: ${miniFmt(t,miniBest(t))}</div>`)+
+   `<div class="tiles">${tile("Score",miniFmt(t,score))}${tile("XP","+"+xp)}${tile("Level",PF.level,ups?"Level up!":"")}</div><table>${rows}</table><button class="mbtn" id="mgMenu"><b>Mini games</b></button><button class="mbtn" id="mgHome"><b>Main menu</b></button>`,"Play again",()=>startMini(t));
+  $("mgMenu").onclick=()=>{closeCard();MODE="intro";MG=null;miniMenu();};$("mgHome").onclick=()=>{closeCard();mainMenu();};
 }
 function tourMenu(){
   const html=TOURS.map(T=>{const open=tourUnlocked(T),tier=TIERS[T.tier],need=T.need?TOURS.find(x=>x.id===T.need.tour):null;
