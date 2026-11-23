@@ -78,6 +78,16 @@ button{font-family:inherit;cursor:pointer}
 #spinMenu .ar{width:24px;font-size:16px;color:#e8523f;font-weight:900;text-align:center}
 .xpbar{height:9px;background:#2a324b;border-radius:5px;overflow:hidden;margin:6px 0 2px}.xpbar i{display:block;height:100%;background:linear-gradient(90deg,#f5cf4a,#ffb347)}
 .prof{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#c3c9da}.prof b{color:#fff;font-size:15px}
+.hstrip{display:flex;align-items:center;gap:8px;background:#232a40;border-radius:12px;padding:7px 10px;font-size:13px;color:#cfd5e4}
+.hstrip .who{background:none;border:0;color:#fff;font-weight:700;font-size:13px;padding:0;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hstrip .lv{flex:1;display:flex;align-items:center;gap:6px}.hstrip .xpm{flex:1;height:6px;border-radius:3px;background:#3b4563;overflow:hidden}.hstrip .xpm i{display:block;height:100%;background:var(--gold)}
+.hstrip .cash{color:var(--gold);font-weight:800}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.mtile{display:flex;flex-direction:column;align-items:center;gap:2px;background:#2d3550;color:#fff;border:2px solid #3b4563;border-radius:14px;padding:11px 6px}
+.mtile .ic{font-size:26px;line-height:1.1}.mtile b{font-size:15px}.mtile span{font-size:11.5px;color:#aab1c4;line-height:1.25}
+.mbar{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px}
+.mbar button{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;background:#232a40;border:1px solid #3b4563;border-radius:12px;padding:7px 2px;color:#cfd5e4;font-size:10.5px;font-weight:600}
+.mbar .ic{font-size:20px}.mbar .bd{position:absolute;top:-5px;right:-3px;background:#e8523f;color:#fff;border-radius:9px;font-size:10px;font-weight:800;padding:0 5px;line-height:16px}
 .badge{background:#e8523f;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800;margin-left:4px}
 .row{display:flex;align-items:center;gap:8px;text-align:left;background:#2a324b;border-radius:12px;padding:9px 10px;margin-bottom:7px}
 .row .rt{flex:1}.row b{font-size:15px}.row .rd{font-size:11.5px;color:#aab1c4;margin-top:1px}
@@ -1741,31 +1751,49 @@ function mainMenu(){
   RW=[];CH=null;PP=null;MG=null;
   if(!DAILY_PREV&&!courseUnlocked(COURSE.id)){setCourse("parkland");startHole(0);phase="intro";}
   if(DAILY_PREV){setCourse(DAILY_PREV.course);DAILY_PREV=null;startHole(0);phase="intro";}
-  const dst=dailyState(),dsp=dailySpec();
-  openCard("Golf Classic",`${COURSE.icon} ${COURSE.name} · 9 holes · Par ${HOLES.reduce((a,h)=>a+h.par,0)}`,
-   profHead()+`<div class="prof" style="margin-top:4px;font-size:12px"><span>Playing as <b>${esc(PF.name||"you")}</b></span><button id="mName" style="background:none;border:0;color:var(--gold);font-weight:700;font-size:12px">${PF.name?"Change":"Set name"}</button></div><div class="plab">Course</div><div class="tees">${COURSES.map(c=>{const ok=courseUnlocked(c.id);return `<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}" ${ok?"":"disabled style='opacity:.45'"}><span style="font-size:22px">${ok?c.icon:"🔒"}</span><b style="font-size:13px">${c.name}</b>${ok?"":`<span class="tm">${courseTour(c.id)&&TOURS.find(T=>T.courses.includes(c.id)&&!TOURS.slice(0,TOURS.indexOf(T)).some(o=>o.courses.includes(c.id))).name}</span>`}</button>`;}).join("")}</div>
-   <button class="mbtn gold" id="mTour"><b>🏆 Tours</b><span>${TOURS.filter(tourUnlocked).map(T=>T.name).join(" · ")} · prize money and full XP</span></button>
-   <button class="mbtn" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.6'":""}><b>📅 Daily challenge</b><span>${courseUnlocked(dsp.course.id)?dsp.course.icon:"🔒 taster of "+dsp.course.name+" ·"} ${dsp.name} · closest to the pin · ${3-dst.tries} tr${3-dst.tries===1?"y":"ies"} left${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
-   <button class="mbtn" id="mMini"><b>🎯 Mini games</b><span>Closest to the pin · putting challenge · long drive</span></button>
-   <button class="mbtn" id="mPass"><b>👨‍👩‍👧 Pass &amp; play</b><span>2 to 4 players on one phone</span></button>
-   <button class="mbtn" id="mPrac"><b>Practice round</b><span>Pick tees, weather, wind and hole · half XP</span></button>
-   <button class="mbtn" id="mPlayer"><b>🏌️ Player &amp; skills</b><span>${PF.points?`${PF.points} skill point${PF.points>1?"s":""} to spend`:"Level "+PF.level}</span></button>
-   <button class="mbtn" id="mShop"><b>🛒 Pro shop</b><span>Upgrade your clubs · ${money(PF.money)}</span></button>
-   <button class="mbtn" id="mAch"><b>🏅 Achievements</b><span>${Object.keys(PF.ach||{}).length} of ${ACH.length} unlocked</span></button>
-   <button class="mbtn" id="mStats"><b>📊 Stats &amp; records</b><span>${ST.rounds} round${ST.rounds===1?"":"s"} played</span></button>
-   <details style="text-align:left;margin-top:10px;color:#aab1c4;font-size:13px"><summary>How to play</summary>${HOW}<ul class="how"><li>Tap the <b>ball button</b> to choose topspin (low, runs out) or backspin (high, stops). Better clubs make spin stronger.</li></ul></details>`,null,null);
+  const dst=dailyState(),dsp=dailySpec(),left=3-dst.tries;
+  const cur=[...TOURS].reverse().find(tourUnlocked),nT=TOURS[TOURS.indexOf(cur)+1];
+  const tsub=nT?`${cur.name} · ${tourWins(cur.id)} of ${nT.need.wins} wins to the ${nT.name}`:`${cur.name} · all courses open`;
+  openCard("Golf Classic","",
+   `<div class="hstrip"><button class="who" id="mName">👤 ${esc(PF.name||"Set name")}</button><span class="lv">Lv <b style="color:#fff">${PF.level}</b><i class="xpm"><i style="width:${Math.round(PF.xp/xpNeed(PF.level)*100)}%"></i></i></span><span class="cash">${money(PF.money)}</span></div>
+   <button class="mbtn gold" id="mTour" style="padding:14px 11px"><b style="font-size:20px">🏆 Tours</b><span>${tsub}</span></button>
+   <div class="mgrid">
+    <button class="mtile" id="mPrac"><span class="ic">⛳</span><b>Practice</b><span>Any course, your conditions</span></button>
+    <button class="mtile" id="mDaily" ${dst.tries>=3?"disabled style='opacity:.55'":""}><span class="ic">📅</span><b>Daily</b><span>${dsp.course.icon} ${left>0?`${left} tr${left===1?"y":"ies"} left`:"Back tomorrow"}${dst.best!=null?` · best ${dst.best===0?"ACE":Math.round(dst.best)+" ft"}`:""}</span></button>
+    <button class="mtile" id="mMini"><span class="ic">🎯</span><b>Mini games</b><span>Pin, putting, long drive</span></button>
+    <button class="mtile" id="mPass"><span class="ic">👨‍👩‍👧</span><b>Pass &amp; play</b><span>2 to 4 on one phone</span></button>
+   </div>
+   <div class="mbar">
+    <button id="mPlayer"><span class="ic">🏌️</span>Player${PF.points?`<i class="bd">${PF.points}</i>`:""}</button>
+    <button id="mShop"><span class="ic">🛒</span>Shop</button>
+    <button id="mAch"><span class="ic">🏅</span>Awards</button>
+    <button id="mStats"><span class="ic">📊</span>Stats</button>
+    <button id="mHow"><span class="ic">❓</span>How to</button>
+   </div>`,null,null);
   $("mStats").onclick=()=>{ac();statsCard();};
   $("mDaily").onclick=()=>{ac();if(dailyState().tries>=3)return;closeCard();startDaily();};
   $("mAch").onclick=()=>{ac();achCard();};
-  $("mPass").onclick=()=>{ac();passMenu();};
-  $("mMini").onclick=()=>{ac();miniMenu();};
+  $("mPass").onclick=()=>{ac();coursePick("Pass & Play",passMenu);};
+  $("mMini").onclick=()=>{ac();coursePick("Mini games",miniMenu);};
   $("mName").onclick=()=>{const old=PF.name;PF.name="";askName(()=>mainMenu());if(!PF.name&&old)$("nmIn").value=old;};
   $("mTour").onclick=()=>{ac();tourMenu();};
-  $("mPrac").onclick=()=>{ac();practiceMenu();};
+  $("mPrac").onclick=()=>{ac();coursePick("Practice",practiceMenu);};
   $("mPlayer").onclick=()=>{ac();playerMenu();};
   $("mShop").onclick=()=>{ac();shopMenu();};
-  document.querySelectorAll(".crs").forEach(b=>b.onclick=()=>{ac();if(!courseUnlocked(b.dataset.c))return;setCourse(b.dataset.c);parts=[];startHole(0);phase="intro";updateHUD();mainMenu();});
+  $("mHow").onclick=()=>{ac();openCard("How to play","",HOW+`<ul class="how"><li>Tap the <b>ball button</b> to choose topspin (low, runs out) or backspin (high, stops). Better clubs make spin stronger.</li><li><b>Tours</b> give prize money and full XP. Win events to move up a tour and open new courses.</li></ul>`,"Back",mainMenu);};
 }
+// pick a course, then carry on into the chosen mode
+let PICK=null;
+function coursePick(mode,next){
+  PICK={mode,next};const firstTour=cid=>TOURS.find(T=>T.courses.includes(cid));
+  openCard(mode,"Choose a course",`<div class="tees">${COURSES.map(c=>{const ok=courseUnlocked(c.id);
+    return `<button class="teeb crs${c.id===COURSE.id?" on":""}" data-c="${c.id}" ${ok?"":"disabled style='opacity:.45'"}><span style="font-size:24px">${ok?c.icon:"🔒"}</span><b style="font-size:13px">${c.name}</b>${ok?"":`<span class="tm">${firstTour(c.id).name}</span>`}</button>`;}).join("")}</div>
+   ${COURSES.some(c=>!courseUnlocked(c.id))?`<p style="font-size:12px;color:#8f98ae;margin:8px 0 0">Locked courses open as you move up the tours.</p>`:""}
+   <button class="mbtn" id="cpBack" style="margin-top:10px"><b>Back</b></button>`,null,null);
+  document.querySelectorAll(".crs").forEach(b=>b.onclick=()=>{ac();if(!courseUnlocked(b.dataset.c))return;setCourse(b.dataset.c);parts=[];startHole(0);phase="intro";updateHUD();next();});
+  $("cpBack").onclick=()=>{ac();mainMenu();};
+}
+const pickBack=()=>PICK?coursePick(PICK.mode,PICK.next):mainMenu();
 function achCard(){const got=PF.ach||{};
   openCard("Achievements",`${Object.keys(got).length} of ${ACH.length} unlocked`,ACH.map(a=>`<div class="row" style="${got[a[0]]?"":"opacity:.5"}"><span style="font-size:22px">${got[a[0]]?"🏅":"🔒"}</span><div class="rt"><b>${a[1]}</b><div class="rd">${a[2]}${got[a[0]]?` · ${got[a[0]]}`:""}</div></div><span style="font-size:11.5px;color:var(--gold);font-weight:800;text-align:right">${a[3]?money(a[3]):""}${a[4]?`<br>${a[4]} XP`:""}</span></div>`).join(""),"Back",mainMenu);}
 const PAGES_URL="https://lester-dotcom.github.io/golf-classic/";
@@ -1814,7 +1842,7 @@ const PCOLS=["#e8523f","#3b6fd8","#f5cf4a","#7dde6a"];
 let PPS={n:2,names:["","","",""]};
 function passMenu(){
   if(!PPS.names[0]&&PF.name)PPS.names[0]=PF.name;
-  openCard("Pass & Play","Take turns on one phone · same wind for everyone",
+  openCard("Pass & Play",`${COURSE.icon} ${COURSE.name} · same wind for everyone`,
    `<div class="plab">Players</div>`+chips("ppN",[[2,"2"],[3,"3"],[4,"4"]],PPS.n)+
    `<div id="ppNames"></div>`+
    `<div class="plab">Tees</div>`+chips("pT",[["red","🔴 Red"],["yellow","🟡 Yellow"],["white","⚪ White"]],PR.tee)+
@@ -1829,7 +1857,7 @@ function passMenu(){
   $("ppN").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{keep();PPS.n=+b.dataset.v;$("ppN").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));draw();});
   $("pLen").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PPS.len=+b.dataset.v;$("pLen").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));});
   for(const [id,key] of[["pT","tee"],["pC","cond"],["pW","wind"]])$(id).querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PR[key]=b.dataset.v;$(id).querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));});
-  $("ppBack").onclick=()=>{keep();mainMenu();};
+  $("ppBack").onclick=()=>{keep();pickBack();};
 }
 function startPass(){
   PP={players:Array.from({length:PPS.n},(_,i)=>({name:PPS.names[i]||"Player "+(i+1),col:PCOLS[i],scores:[]})),cur:0,len:PPS.len||9};
@@ -1873,10 +1901,10 @@ let MG=null;
 function miniBest(t){PF.mini=PF.mini||{};return PF.mini[t];}
 function miniFmt(t,v){return v==null?"-":t==="ctp"?Math.round(v)+" ft":t==="putt"?v+"/10":Math.round(v)+"y";}
 function miniMenu(){
-  openCard("Mini games",`${COURSE.icon} Played on ${COURSE.name} · pick another course from the menu`,
+  openCard("Mini games",`${COURSE.icon} ${COURSE.name}`,
    Object.entries(MINIS).map(([k,m])=>`<button class="mbtn mg" data-k="${k}" style="text-align:left"><b>${m.icon} ${m.name}</b><span>${m.desc}</span><span style="color:var(--gold);font-weight:800;margin-top:3px">Best: ${miniFmt(k,miniBest(k))}</span></button>`).join("")+
    `<button class="mbtn" id="mgBack" style="margin-top:10px"><b>Back</b></button>`,null,null);
-  document.querySelectorAll(".mg").forEach(b=>b.onclick=()=>{closeCard();startMini(b.dataset.k);});$("mgBack").onclick=mainMenu;
+  document.querySelectorAll(".mg").forEach(b=>b.onclick=()=>{closeCard();startMini(b.dataset.k);});$("mgBack").onclick=pickBack;
 }
 function startMini(type){
   MODE="mini";RW=[];scores=[];firstHole=0;TIER=null;FIELD=[];CH=null;PP=null;RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};TEE="yellow";
@@ -1956,7 +1984,7 @@ function shopMenu(){
 function chips(id,opts,cur){return `<div class="chips" id="${id}">`+opts.map(([v,l])=>`<button class="chip${v==cur?" on":""}" data-v="${v}">${l}</button>`).join("")+`</div>`;}
 let PR={cond:"sunny",wind:"light",hole:0,tee:TEE,rep:3};let REPS=0;
 function practiceMenu(){
-  openCard("Practice Round","Set up the conditions · half XP",
+  openCard("Practice Round",`${COURSE.icon} ${COURSE.name} · half XP`,
    `<div class="plab">Tees</div>`+chips("pT",[["red","🔴 Red ×0.75"],["yellow","🟡 Yellow ×1"],["white","⚪ White ×1.5"]],PR.tee)+
    `<div class="plab">Weather</div>`+chips("pC",[["sunny","☀️ Sunny"],["overcast","☁️ Overcast"],["rain","🌧️ Rain"],["snow","❄️ Snow"]],PR.cond)+
    `<div class="plab">Wind</div>`+chips("pW",[["calm","Calm"],["light","Light"],["breezy","Breezy"],["strong","Strong"],["random","Random"]],PR.wind)+
@@ -1967,7 +1995,7 @@ function practiceMenu(){
   const wire=(id,key,num)=>$(id).querySelectorAll(".chip").forEach(b=>b.onclick=()=>{PR[key]=num?+b.dataset.v:b.dataset.v;$(id).querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===b));nm();});
   const nm=()=>{TEE=PR.tee;const h=HOLES[PR.hole];$("pHn").textContent=`${h.name} · Par ${h.par} · ${h.length}y from the ${TEES[PR.tee].name.toLowerCase()} tees`;};
   wire("pT","tee");wire("pC","cond");wire("pW","wind");wire("pH","hole",true);wire("pR","rep",true);nm();
-  $("pBack").onclick=mainMenu;
+  $("pBack").onclick=pickBack;
 }
 function closeCard(){$("card").classList.remove("on");cardOpen=false;}
 $("menuBtn").addEventListener("click",()=>{if(cardOpen)return;drag=null;mainMenu();});
