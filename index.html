@@ -1039,9 +1039,9 @@ function penalty(kind){
   else toast("Out of bounds! +1 penalty stroke");
 }
 function holed(){
-  if(MODE==="mini")return miniHoled();
   const fromX=CU?CU.lx:ball.x,fromY=CU?CU.ly:ball.y;
-  if(CU)CU.drop={t:0,x:fromX,y:fromY};else if(phase==="flight"&&F&&!lastPutt){const dx=HOLE.pin.x-F.sx,dy=HOLE.pin.y-F.sy,d=Math.hypot(dx,dy)||1;CU={u:{x:dx/d,y:dy/d},t:0,lx:HOLE.pin.x-dx/d*0.4,ly:HOLE.pin.y-dy/d*0.4,lz:1.2,drop:{t:0,x:HOLE.pin.x-dx/d*0.4,y:HOLE.pin.y-dy/d*0.4}};}
+  if(CU)CU.drop={t:0,x:fromX,y:fromY};
+  if(MODE==="mini")return miniHoled();else if(!CU&&phase==="flight"&&F&&!lastPutt){const dx=HOLE.pin.x-F.sx,dy=HOLE.pin.y-F.sy,d=Math.hypot(dx,dy)||1;CU={u:{x:dx/d,y:dy/d},t:0,lx:HOLE.pin.x-dx/d*0.4,ly:HOLE.pin.y-dy/d*0.4,lz:1.2,drop:{t:0,x:HOLE.pin.x-dx/d*0.4,y:HOLE.pin.y-dy/d*0.4}};}
   ball.x=HOLE.pin.x;ball.y=HOLE.pin.y;ball.h=0;phase="holed";sinkT=0;scores[HI]=strokes;trail=[];
   sfx("cup");hideReplay();updateHUD();
   const diff=strokes-HOLE.par,name=scoreName(diff,strokes);
@@ -1060,6 +1060,7 @@ function holed(){
   let lv=strokes===1?4:diff<=-2?3:diff===-1?2:diff===0?1:diff===1?-1:-2;
   const look={4:["#ffd84a",4.6,true],3:["#ffd84a",3.4,true],2:["#7dde6a",2.6,false],1:["#ffffff",2.1,false],"-1":["#b9c6e4",2.1,false],"-2":["#9fb0d4",2.3,false]}[lv];
   celeb={text:name.replace("!",""),sub,color:look[0],t:0,dur:look[1],big:look[2]};timer=look[1];
+  saveRound("card");
   if(lv===4){crowd.huge();burst(260,true);setTimeout(()=>burst(120,true),900);}
   else if(lv===3){crowd.cheer();setTimeout(()=>applause(2.5,60,.5),900);burst(170,false);}
   else if(lv===2){crowd.cheer();burst(90,false);}
@@ -1084,6 +1085,8 @@ function update(dt){
   else if(phase==="holed"){sinkT+=dt;timer-=dt;if(timer<=0&&!cardOpen)holeCard();}
   if(splash)splash.t+=dt;
   if(GF)GF.t+=dt;
+  if(phase==="aim"&&!drag&&canSave()){const sg=`${COURSE.id},${HI},${strokes},${ball.x.toFixed(2)},${ball.y.toFixed(2)},${PP?PP.cur:0}`;if(sg!==saveSig){saveSig=sg;saveRound("mid");}}
+  if(CU&&CU.end==null&&!CU.drop&&phase!=="roll")CU.end=CU.t;
   if(CU){CU.t+=dt;if(CU.drop)CU.drop.t+=dt;if((CU.end!=null&&CU.t-CU.end>0.9)||(CU.drop&&CU.drop.t>1.5))CU=null;}
   if(phase==="tap"){TAP.t+=dt;const k=Math.min(1,TAP.t/0.3);ball.x=TAP.x+(HOLE.pin.x-TAP.x)*k;ball.y=TAP.y+(HOLE.pin.y-TAP.y)*k;if(k>=1)holed();}
   updTapBtn();
@@ -1188,6 +1191,7 @@ function holeCard(){
   if(MODE==="daily")return dailyCard(0,true);
   if(MODE==="pass")return passHoleCard();
   const s=scores[HI],d=s-HOLE.par,last=HI===HOLES.length-1,t=scoreTable();
+  if(last)clearSave();else saveRound("tee",{hi:HI+1});
   const gx=MODE==="pass"?0:holeXP(),ups=gx?addXP(gx):0;RXP+=gx;RUPS+=ups;if(ups)setTimeout(fanfare,200);
   const xpLine=`<br><b style="color:var(--gold)">+${gx} XP</b>`+(ups?` <b style="color:#7dde6a">⭐ Level ${PF.level}! Skill point to spend</b>`:"");
   const lbH=MODE==="tour"?`<div class="plab">Leaderboard · thru ${HOLES.filter((h,i)=>scores[i]!=null).length}</div>`+boardHtml(board(),5):"";
@@ -1716,7 +1720,7 @@ function drawCloseUp(){
   const hazeG=ctx.createLinearGradient(0,hy,0,hy+ph*0.25);hazeG.addColorStop(0,"rgba(255,255,255,.25)");hazeG.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=hazeG;ctx.fillRect(px,hy,pw,ph*0.25);
   // cup
   const c=proj(HOLE.pin.x,HOLE.pin.y,0),cr=CUPR_PUTT*(1+0.08*GR("putter"));
-  const ballPos=()=>{if(CU.drop){const t=CU.drop.t,k=Math.min(1,t/0.22);return{x:CU.drop.x+(HOLE.pin.x-CU.drop.x)*k,y:CU.drop.y+(HOLE.pin.y-CU.drop.y)*k,z:t<0.22?(CU.lz||0)*(1-k):-Math.min(0.3,(t-0.22)*0.9)};}return{x:CU.lx,y:CU.ly,z:CU.lz||0};};
+  const ballPos=()=>{if(CU.drop){const t=CU.drop.t,k=Math.min(1,t/0.2),e=k*(2-k);return{x:CU.drop.x+(HOLE.pin.x-CU.drop.x)*e,y:CU.drop.y+(HOLE.pin.y-CU.drop.y)*e,z:t<0.2?(CU.lz||0)*(1-k):-Math.min(0.3,3*(t-0.2)**2)};}return{x:CU.lx,y:CU.ly,z:CU.lz||0};};
   const bp=ballPos(),b=proj(bp.x,bp.y,bp.z),bs=proj(bp.x,bp.y,0),br=cr*0.4;
   const drawB=()=>{if(!b)return;const R=br*b.k;
     if(bp.z>=0&&bs){ctx.fillStyle="rgba(0,0,0,.25)";ctx.beginPath();ctx.ellipse(bs.x+R*0.3,bs.y,R*1.1,R*0.3,0,0,7);ctx.fill();}
@@ -1726,8 +1730,9 @@ function drawCloseUp(){
   if(behindCup&&!CU.drop)drawB();
   if(c){const rx=cr*c.k,ry=rx*hC/c.fw;
     ctx.fillStyle="#f4f4f0";ctx.beginPath();ctx.ellipse(c.x,c.y,rx*1.12,ry*1.25,0,0,7);ctx.fill();
-    ctx.fillStyle="#1d1d1f";ctx.beginPath();ctx.ellipse(c.x,c.y,rx,ry,0,0,7);ctx.fill();
-    if(CU.drop&&b){ctx.save();ctx.beginPath();if(CU.drop.t>0.22){ctx.ellipse(c.x,c.y,rx,ry,0,0,7);ctx.clip();}drawB();ctx.restore();}
+    ctx.fillStyle="#1d1d1f";ctx.beginPath();ctx.ellipse(c.x,c.y,rx,ry,0,0,7);ctx.fill();ctx.fillStyle="#3c3c40";ctx.beginPath();ctx.ellipse(c.x,c.y-ry*0.25,rx*0.92,ry*0.62,0,Math.PI,0);ctx.fill();
+    if(CU.drop&&b){ctx.save();if(CU.drop.t>0.2){ctx.beginPath();ctx.rect(px,py,pw,c.y-py);ctx.ellipse(c.x,c.y,rx,ry,0,0,7);ctx.clip();}drawB();ctx.restore();
+      ctx.strokeStyle="rgba(255,255,255,.9)";ctx.lineWidth=Math.max(1.5,rx*0.08);ctx.beginPath();ctx.ellipse(c.x,c.y,rx*1.06,ry*1.15,0,0.05,Math.PI-0.05);ctx.stroke();}
     // flagstick
     const top=proj(HOLE.pin.x,HOLE.pin.y,2.3);if(top){ctx.strokeStyle="#f2e7c4";ctx.lineWidth=Math.max(2,0.02*c.k);ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(top.x,top.y);ctx.stroke();}
   }
@@ -1743,6 +1748,26 @@ let last=performance.now();
 function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;if(HOLE){update(dt);render();}requestAnimationFrame(frame);}
 resize();
 let TIER=null,FIELD=[],RXP=0,RUPS=0,DAILY_PREV=null,RW=[],CH=null,PP=null;
+// ---- saved round: continue where you left off ----
+const SAVEK="golf-classic-round-v1";let saveSig="";
+const canSave=()=>MODE==="tour"||MODE==="prac"||MODE==="pass"||MODE==="challenge";
+function loadSave(){try{const v=JSON.parse(localStorage.getItem(SAVEK)||"null");return v&&COURSES.some(c=>c.id===v.course)?v:null;}catch(e){return null;}}
+function clearSave(){saveSig="";try{localStorage.removeItem(SAVEK);}catch(e){}}
+function saveRound(kind,nx){if(!canSave())return;
+  const o={kind,mode:MODE,course:COURSE.id,tier:TIER?TIERS.indexOf(TIER):-1,tee:TEE,wx:WX,rw:RW,scores,firstHole,field:FIELD,rs:RS,rxp:RXP,rups:RUPS,reps:REPS===Infinity?-1:REPS,pp:PP,ch:CH,hi:HI,strokes,ball:{x:ball.x,y:ball.y},lie,hs:HS,at:Date.now()};
+  if(nx)Object.assign(o,nx);try{localStorage.setItem(SAVEK,JSON.stringify(o));}catch(e){}}
+function saveSummary(v){const c=COURSES.find(x=>x.id===v.course),sc=v.pp?v.pp.players[0].scores:v.scores;let tp=0,n=0;
+  (sc||[]).forEach((x,i)=>{if(x!=null){tp+=x-c.defs[i].par;n++;}});
+  const m=v.mode==="tour"?c.tiers[v.tier][0]:v.mode==="pass"?`Pass & play · ${v.pp.players.length} players`:v.mode==="challenge"?"Challenge":"Practice";
+  return `${c.icon} ${m} · hole ${Math.min(9,v.hi+1)}${n&&!v.pp?` · ${tp===0?"E":(tp>0?"+":"")+tp} thru ${n}`:""}`;}
+function resumeRound(v){
+  setCourse(v.course);MODE=v.mode;TIER=v.tier>=0?TIERS[v.tier]:null;TEE=v.tee;WX=v.wx;RW=v.rw||[];firstHole=v.firstHole||0;FIELD=v.field||[];RS=v.rs;RXP=v.rxp||0;RUPS=v.rups||0;
+  REPS=v.reps<0?Infinity:v.reps||0;PP=v.pp||null;CH=v.ch||null;MG=null;scores=PP?PP.players[PP.cur].scores:(v.scores||[]);parts=[];
+  startHole(v.hi);
+  if(v.kind==="mid"){ball.x=v.ball.x;ball.y=v.ball.y;lie=v.lie;strokes=v.strokes;HS=v.hs;phase="aim";}
+  else if(v.kind==="card"){HS=v.hs;strokes=v.strokes;ball.x=HOLE.pin.x;ball.y=HOLE.pin.y;phase="holed";timer=0.4;sinkT=1;}
+  updateHUD();camTarget();Object.assign(cam,camT);toast("Welcome back · round restored");
+}
 function dayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function dailySpec(){const k=dayKey();let h=7;for(const c of k)h=(h*31+c.charCodeAt(0))|0;const r=rngF(h);
   const c=COURSES[Math.floor(r()*COURSES.length)],opts=c.defs.map((d,i)=>[d,i]).filter(([d])=>d.par===3),[d,hi]=opts[Math.floor(r()*opts.length)];
@@ -1768,6 +1793,7 @@ function dailyCard(ft,onGreen){
 }
 function gauss(){return Math.sqrt(-2*Math.log(Math.random()+1e-9))*Math.cos(2*Math.PI*Math.random());}
 function beginRound(mode,from,tier){
+  clearSave();
   MODE=mode;scores=[];firstHole=from||0;REPS=mode==="prac"?(PR.rep<0?Infinity:PR.rep):0;if(mode!=="challenge")RW=[];RS={fw:[0,0],gir:[0,0],putts:0,drives:[],prox:[]};RXP=0;RUPS=0;TIER=tier||null;FIELD=[];
   if(mode==="tour"){
     let r=Math.random(),ci=0;const wp=TH.wx;while(ci<3&&r>wp[ci]){r-=wp[ci];ci++;}WX={cond:["sunny","overcast","rain","snow"][ci],wind:"random"};TEE=tier.tee;
@@ -1817,11 +1843,12 @@ function mainMenu(){
   RW=[];CH=null;PP=null;MG=null;
   if(!DAILY_PREV&&!courseUnlocked(COURSE.id)){setCourse("parkland");startHole(0);phase="intro";}
   if(DAILY_PREV){setCourse(DAILY_PREV.course);DAILY_PREV=null;startHole(0);phase="intro";}
-  const dst=dailyState(),dsp=dailySpec(),left=3-dst.tries;
+  const dst=dailyState(),dsp=dailySpec(),left=3-dst.tries,SV=loadSave();
   const cur=[...TOURS].reverse().find(tourUnlocked),nT=TOURS[TOURS.indexOf(cur)+1];
   const tsub=nT?`${cur.name} · ${tourWins(cur.id)} of ${nT.need.wins} wins to the ${nT.name}`:`${cur.name} · all courses open`;
   openCard("Golf Classic","",
    `<div class="hstrip"><button class="who" id="mName">👤 ${esc(PF.name||"Set name")}</button><span class="lv">Lv <b style="color:#fff">${PF.level}</b><i class="xpm"><i style="width:${Math.round(PF.xp/xpNeed(PF.level)*100)}%"></i></i></span><span class="cash">${money(PF.money)}</span></div>
+   ${SV?`<div style="display:flex;gap:8px;margin-top:10px"><button class="mbtn" id="mCont" style="margin:0;flex:1;border-color:var(--gold);background:#3a3a2a;padding:10px 11px"><b>▶ Continue round</b><span>${saveSummary(SV)}</span></button><button class="mbtn" id="mDrop" style="margin:0;width:54px;font-size:18px;align-items:center;justify-content:center" title="Discard">✕</button></div>`:""}
    <button class="mbtn gold" id="mTour" style="padding:14px 11px"><b style="font-size:20px">🏆 Tours</b><span>${tsub}</span></button>
    <div class="mgrid">
     <button class="mtile" id="mPrac"><span class="ic">⛳</span><b>Practice</b><span>Any course, your conditions</span></button>
@@ -1837,6 +1864,8 @@ function mainMenu(){
     <button id="mHow"><span class="ic">❓</span>How to</button>
    </div>`,null,null);
   $("mStats").onclick=()=>{ac();statsCard();};
+  if(SV){$("mCont").onclick=()=>{ac();closeCard();resumeRound(SV);};
+    $("mDrop").onclick=()=>{const b=$("mDrop");if(b.dataset.c){clearSave();mainMenu();}else{b.dataset.c=1;b.textContent="Sure?";b.style.fontSize="12px";}};}
   $("mDaily").onclick=()=>{ac();if(dailyState().tries>=3)return;closeCard();startDaily();};
   $("mAch").onclick=()=>{ac();achCard();};
   $("mPass").onclick=()=>{ac();coursePick("Pass & Play",passMenu);};
@@ -1934,6 +1963,7 @@ function passTotals(upTo){return PP.players.map(p=>{let s=0,par=0;for(let i=0;i<
 function passBoard(upTo){return `<table class="lb">${passTotals(upTo).map((r,i)=>`<tr><td style="width:30px">${i+1}</td><td style="text-align:left"><span class="tdot" style="background:${r.p.col};width:11px;height:11px;margin-right:6px"></span>${esc(r.p.name)}</td><td>${r.s}</td><td>${tp(r.d)}</td></tr>`).join("")}</table>`;}
 function passHoleCard(){
   const pl=PP.players[PP.cur],s=pl.scores[HI],d=s-HOLE.par,nextP=PP.cur+1<PP.players.length,lastHole=HI>=PP.len-1;
+  if(nextP)saveRound("tee",{pp:{...PP,cur:PP.cur+1}});else if(lastHole)clearSave();else saveRound("tee",{hi:HI+1,pp:{...PP,cur:0}});
   if(nextP){const np=PP.players[PP.cur+1];
     openCard(`${esc(pl.name)}: ${scoreName(d,s)}`,`Hole ${HI+1} · ${s} stroke${s>1?"s":""}`,`<div class="newbest" style="color:${np.col}">Pass the phone to ${esc(np.name)}</div>`,`${esc(np.name)}'s turn`,()=>{PP.cur++;scores=PP.players[PP.cur].scores;startHole(HI);toast(`${np.name} · hole ${HI+1}`);});return;}
   const hole=PP.players.map(p=>`<tr><td style="text-align:left"><span class="tdot" style="background:${p.col};width:11px;height:11px;margin-right:6px"></span>${esc(p.name)}</td><td><span class="sc ${cls(p.scores[HI]-HOLE.par)}">${p.scores[HI]}</span></td></tr>`).join("");
@@ -2071,7 +2101,7 @@ mainMenu();
 if(/^#ch=/.test(location.hash)){try{const sp=b64d(location.hash.slice(4));history.replaceState(null,"",location.pathname+location.search);challengeIntro(sp);}catch(e){toast("That challenge link didn't work");}}
 if("serviceWorker" in navigator&&/^https?:/.test(location.protocol)){navigator.serviceWorker.register("sw.js").catch(()=>{});}
 requestAnimationFrame(frame);
-window.__golf={get state(){return{phase,lie,strokes,ball:{...ball},HI,scores:scores.slice()}},get HOLES(){return HOLES},surfaceAt:(x,y)=>surfaceAt(x,y),simPutt,takeShot,computeAim,setSpin:v=>{spinSel=v;},setCourse:c=>{setCourse(c);startHole(0);},setBall:(x,y)=>{ball.x=x;ball.y=y;lie=surfaceAt(x,y);phase="aim";updateHUD();}};
+window.__golf={get cu(){return CU},get state(){return{phase,lie,strokes,ball:{...ball},HI,scores:scores.slice()}},get HOLES(){return HOLES},surfaceAt:(x,y)=>surfaceAt(x,y),simPutt,takeShot,computeAim,setSpin:v=>{spinSel=v;},setCourse:c=>{setCourse(c);startHole(0);},setBall:(x,y)=>{ball.x=x;ball.y=y;lie=surfaceAt(x,y);phase="aim";updateHUD();}};
 })();
 </script>
 </body>
